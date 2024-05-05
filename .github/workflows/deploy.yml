@@ -42,4 +42,4 @@ jobs:
           personal_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./docs/.vitepress/dist
       #    cname: your-custom-domain.com # 如果有自定义域名，取消注释并填写
-          branch: gh-pages # 指定部署的目标分支  
+      #    branch: gh-pages # 指定部署的目标分支  
