@@ -24,8 +24,7 @@ export default defineConfig({
   
 
   srcDir: './src',
-  #srcExclude: ['api-examples.md', ],
-  #assetsDir: 'static',
+
 
 
   // appearance: 'dark',
