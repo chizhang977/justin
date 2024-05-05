@@ -3,7 +3,7 @@ import  navbar  from './nav.ts'
 import  sidebar  from './sidebar.ts'
 export default defineConfig({
   
-  base: '/doc/',
+  base: '/justin/',
   lang: 'en-US',
   title: "成的技术航行记",
   description: "全栈深入探索",
