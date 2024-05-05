@@ -10,13 +10,13 @@ hero:
   actions:
     - theme: brand
       text: 快速开始 ->
-      link: //docs/linux/docker/Docker初识
+      link: /docs/linux/docker/Docker初识
     - theme: alt
       text: 最新文章
       link: /api-examples
     - theme: alt
       text: 在 Gihub 上查看  
-      link: https://github.com/chizhang977/justin.git
+      link: https://github.com/chizhang977/justin
    
 
 features:
