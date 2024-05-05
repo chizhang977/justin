@@ -3,7 +3,7 @@ import  navbar  from './nav.ts'
 import  sidebar  from './sidebar.ts'
 export default defineConfig({
   
-  base: '/doc',
+  base: '/doc/',
   lang: 'en-US',
   title: "成的技术航行记",
   description: "全栈深入探索",
@@ -70,14 +70,14 @@ export default defineConfig({
     nav: navbar,
     sidebar: sidebar,
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/chizhang977/docs' },
+      { icon: 'github', link: 'https://github.com/chizhang977' },
     ],
     footer: {
       message: 'Released under the MIT License.',
       copyright: 'Copyright © 2024-present chizhang977'
     },
     editLink: {
-      pattern: 'https://github.com/vuejs/vitepress/edit/main/docs/:path',
+      pattern: 'https://github.com/chizhang977/justin/:path',
       text: '在Github上编辑此页'
     }
   }
