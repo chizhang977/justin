@@ -100,7 +100,7 @@ export default [
       items:[
         { text: '设计模式', link: '/docs/method/dp/七大原则' },
         { text: '代码规范', link: '...' },
-        { text: '开发理论', link: '...' },
+        { text: '开发理论', link: '/docs/method/devtheory/cap' },
       ]
     },
     {

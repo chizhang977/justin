@@ -1,4 +1,19 @@
 export default {
+  'docs/method/devtheory':[
+    {
+      text: '开发理论',
+      items: [
+        {
+          text: 'CAP',
+          link: '/docs/method/devtheory/cap',
+        },
+        {
+          text: 'ACID',
+          link: '/docs/method/devtheory/transaction',
+        },
+      ],
+    },
+  ],
   '/docs/method/dp':[
     {
       text: '设计模式',
