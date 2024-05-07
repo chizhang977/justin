@@ -1,4 +1,27 @@
 export default {
+  '/docs/method/dp':[
+    {
+      text: '设计模式',
+      items: [
+        {text: '七大原则',link: '/docs/method/dp/七大原则'},
+        {text: '单例模式',link: '/docs/method/dp/单例模式'},
+        {text: '工厂模式',link: '/docs/method/dp/3_工厂模式'},
+        {text: '建造者模式',link: '/docs/method/dp/4_建造者模式'},
+        {text: '原型模式',link: '/docs/method/dp/5_原型模式'},
+        {text: '适配器模式',link: '/docs/method/'}, 
+        {text: '代理模式',link: '/docs/method/dp/6_代理模式'},
+        {text: '装饰模式',link: '/docs/method/dp/7_装饰模式'},
+        {text: '观察者模式',link: '/docs/method/dp/8_观察者模式'},
+        {text: '迭代器模式',link: '/docs/method/dp/9_迭代器模式'},
+        {text: '状态模式',link: '/docs/method/dp/10_状态模式'},
+        {text: '策略模式',link: '/docs/method/dp/11_策略模式'},
+        {text: '模板方法模式',link: '/docs/method/dp/12_模板方法模式'},
+        {text: '职责链模式',link: '/docs/method/dp/13_职责链模式'},
+        {text: '命令模式',link: '/docs/method/dp/14_命令模式'},
+        {text: '解释器模式',link: '/docs/method/dp/ 15_解释器模式'},
+      ]
+    }
+  ],
   '/docs/front/vue/': [
     {
       text: 'Vue.js详解',
