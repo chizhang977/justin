@@ -78,7 +78,7 @@ export default defineConfig({
       copyright: 'Copyright © 2024-present chizhang977'
     },
     editLink: {
-      pattern: 'https://github.com/chizhang977/justin/:path',
+      pattern: 'https://github.com/chizhang977/justin/tree/master/docs/src/:path',
       text: '在Github上编辑此页'
     }
   }
