@@ -20,7 +20,7 @@ export default {
       items: [
         {text: '七大原则',link: '/docs/method/dp/七大原则'},
         {text: '单例模式',link: '/docs/method/dp/单例模式'},
-        {text: '工厂模式',link: '/docs/method/dp/3_工厂模式'},
+        {text: '工厂模式',link: '/docs/method/dp/工厂模式'},
         {text: '建造者模式',link: '/docs/method/dp/4_建造者模式'},
         {text: '原型模式',link: '/docs/method/dp/5_原型模式'},
         {text: '适配器模式',link: '/docs/method/'}, 
