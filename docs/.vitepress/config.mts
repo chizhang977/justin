@@ -2,12 +2,16 @@ import { defineConfig } from 'vitepress'
 import  navbar  from './nav.ts'
 import  sidebar  from './sidebar.ts'
 export default defineConfig({
+
   
   base: '/justin/',
   lang: 'en-US',
   title: "成的技术航行记",
   description: "全栈深入探索",
-
+  head: [
+    ['link', { rel: 'icon', href: '/justin/favicon.ico' }],
+    ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
+  ],
 
   vite: {
     // Vite 配置选项
@@ -30,7 +34,14 @@ export default defineConfig({
 
   // appearance: 'dark',
   lastUpdated: true,
-  themeConfig: {    
+  themeConfig: { 
+    //广告   
+    // carbonAds: {
+    //   code: 'your-carbon-code',
+    //   placement: 'your-carbon-placement'
+    // },
+
+
     logo: '/logo.svg',
     // siteTitle: 'Hello World',
 
@@ -66,8 +77,7 @@ export default defineConfig({
         timeStyle: 'medium'
       }
     },
-
-  
+    
     nav: navbar,
     sidebar: sidebar,
     socialLinks: [
