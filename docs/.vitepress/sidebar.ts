@@ -18,39 +18,45 @@ export default {
     {
       text: '设计模式',
       items: [
-        {text: '七大原则',link: '/docs/method/dp/七大原则'},
-        {text:'创建型模式',collapsed: false,items:[
-          {text: '单例模式',link: '/docs/method/dp/单例模式'},
-          {text: '工厂模式',link: '/docs/method/dp/工厂模式'},
-          {text: '建造者模式',link: '/docs/method/dp/建造者模式'},
-          {text: '原型模式',link: '/docs/method/dp/原型模式'},
-        ]},
-        {text: '结构型模式',collapsed: false,items:[
-          {text: '外观模式',link: '/docs/method/dp/外观模式'},
-          {text: '适配器模式',link: '/docs/method/dp/适配器模式'},
-          {text: '桥接模式',link: '/docs/method/dp/桥接模式'},
-          {text: '组合模式',link: '/docs/method/dp/组合模式'},
-          {text: '代理模式',link: '/docs/method/dp/代理模式'},
-          {text: '装饰模式',link: '/docs/method/dp/装饰模式'},
-          {text: '享元模式',link: '/docs/method/dp/享元模式'},
-        ]},
-        {text: '行为型模式',collapsed: false,items:[
-          {text: '策略模式',link: '/docs/method/dp/策略模式'},
-          {text: '模板方法模式',link: '/docs/method/dp/模板方法模式'},
-          {text: '责任链模式',link: '/docs/method/dp/责任链模式'},
-          {text: '命令模式',link: '/docs/method/dp/命令模式'},
-          {text: '解释器模式',link: '/docs/method/dp/解释器模式'},
-          {text: '访问者模式',link: '/docs/method/dp/访问者模式'},
-          {text: '中介者模式',link: '/docs/method/dp/中介者模式'},
-          {text: '备忘录模式',link: '/docs/method/dp/备忘录模式'},
-          {text: '迭代器模式',link: '/docs/method/dp/迭代器模式'},
-          {text: '状态模式',link: '/docs/method/dp/状态模式'},
-          {text: '观察者模式',link: '/docs/method/dp/观察者模式'},
-          {text: '迭代器模式',link: '/docs/method/dp/迭代器模式'},
-          {text: '命令模式',link: '/docs/method/dp/命令模式'},
-          {text: '解释器模式',link: '/docs/method/dp/解释器模式'},
-          {text: '访问者模式',link: '/docs/method/dp/访问者模式'},
-        ]}
+          {text: '原则',link: '/docs/method/dp/七大原则'},
+          {text:'创建型模式',collapsed: false,
+            items:[
+            {text: '单例模式',link: '/docs/method/dp/单例模式'},
+            {text: '工厂模式',link: '/docs/method/dp/工厂模式'},
+            {text: '建造者模式',link: '/docs/method/dp/建造者模式'},
+            {text: '原型模式',link: '/docs/method/dp/原型模式'},
+            ]
+          },
+          {text: '结构型模式',collapsed: false,
+            items:[
+            {text: '外观模式',link: '/docs/method/dp/外观模式'},
+            {text: '适配器模式',link: '/docs/method/dp/适配器模式'},
+            {text: '桥接模式',link: '/docs/method/dp/桥接模式'},
+            {text: '组合模式',link: '/docs/method/dp/组合模式'},
+            {text: '代理模式',link: '/docs/method/dp/代理模式'},
+            {text: '装饰模式',link: '/docs/method/dp/装饰模式'},
+            {text: '享元模式',link: '/docs/method/dp/享元模式'},
+                ]
+          },
+          {text: '行为型模式',collapsed: false,
+            items:[
+            {text: '策略模式',link: '/docs/method/dp/策略模式'},
+            {text: '模板方法模式',link: '/docs/method/dp/模板方法模式'},
+            {text: '责任链模式',link: '/docs/method/dp/责任链模式'},
+            {text: '命令模式',link: '/docs/method/dp/命令模式'},
+            {text: '解释器模式',link: '/docs/method/dp/解释器模式'},
+            {text: '访问者模式',link: '/docs/method/dp/访问者模式'},
+            {text: '中介者模式',link: '/docs/method/dp/中介者模式'},
+            {text: '备忘录模式',link: '/docs/method/dp/备忘录模式'},
+            {text: '迭代器模式',link: '/docs/method/dp/迭代器模式'},
+            {text: '状态模式',link: '/docs/method/dp/状态模式'},
+            {text: '观察者模式',link: '/docs/method/dp/观察者模式'},
+            {text: '迭代器模式',link: '/docs/method/dp/迭代器模式'},
+            {text: '命令模式',link: '/docs/method/dp/命令模式'},
+            {text: '解释器模式',link: '/docs/method/dp/解释器模式'},
+            {text: '访问者模式',link: '/docs/method/dp/访问者模式'},
+                  ]
+          }
       ]
     }
   ],
