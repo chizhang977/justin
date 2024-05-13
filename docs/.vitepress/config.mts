@@ -98,7 +98,8 @@ export default defineConfig({
     },
     editLink: {
       pattern: 'https://github.com/chizhang977/justin/tree/master/docs/src/:path',
-      text: '在Github上编辑此页'
-    }
+      text: '我要纠错'
+    },
+    
   }
 })

@@ -18,8 +18,8 @@ export default {
     {
       text: '设计模式',
       items: [
-          {text: '原则',link: '/docs/method/dp/七大原则'},
-          {text:'创建型模式',collapsed: false,
+          {text: '前置知识',link: '/docs/method/dp/七大原则'},
+          {text:'创建型模式',collapsed: true,
             items:[
             {text: '单例模式',link: '/docs/method/dp/单例模式'},
             {text: '工厂模式',link: '/docs/method/dp/工厂模式'},
@@ -27,7 +27,7 @@ export default {
             {text: '原型模式',link: '/docs/method/dp/原型模式'},
             ]
           },
-          {text: '结构型模式',collapsed: false,
+          {text: '结构型模式',collapsed: true,
             items:[
             {text: '外观模式',link: '/docs/method/dp/外观模式'},
             {text: '适配器模式',link: '/docs/method/dp/适配器模式'},
@@ -38,7 +38,7 @@ export default {
             {text: '享元模式',link: '/docs/method/dp/享元模式'},
                 ]
           },
-          {text: '行为型模式',collapsed: false,
+          {text: '行为型模式',collapsed: true,
             items:[
             {text: '策略模式',link: '/docs/method/dp/策略模式'},
             {text: '模板方法模式',link: '/docs/method/dp/模板方法模式'},
@@ -73,7 +73,7 @@ export default {
     {
       text: 'Redis详解',
       items: [
-        {text: 'Redis初识',link: '/docs/db/redis/1_Redis基础'},
+        {text: 'Redis初识',link: '/docs/db/redis/1_Redis基础', },
         {text: 'Redis基础',link: '/docs/db/redis/2_Redis基础'},
         {text: 'Redis缓存',link: '/docs/db/redis/3_缓存详解'},
         {text: 'Redis多级缓存',link: '/docs/db/redis/4_多级缓存'},
