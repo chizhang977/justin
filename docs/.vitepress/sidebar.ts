@@ -51,9 +51,6 @@ export default {
             {text: '迭代器模式',link: '/docs/method/dp/迭代器模式'},
             {text: '状态模式',link: '/docs/method/dp/状态模式'},
             {text: '观察者模式',link: '/docs/method/dp/观察者模式'},
-            {text: '迭代器模式',link: '/docs/method/dp/迭代器模式'},
-            {text: '命令模式',link: '/docs/method/dp/命令模式'},
-            {text: '解释器模式',link: '/docs/method/dp/解释器模式'},
             {text: '访问者模式',link: '/docs/method/dp/访问者模式'},
                   ]
           }
@@ -64,6 +61,7 @@ export default {
     {
       text: 'Vue.js详解',
       items: [
+        {text:'vue基础',link: '/docs/front/vue/vue基础'},
         {text: 'Vue2',link: '/docs/front/vue/'},
         {text: 'Vue3',link: '/docs/front/vue/vue3'},
       ],
