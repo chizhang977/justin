@@ -51,8 +51,7 @@ export default {
             {text: '迭代器模式',link: '/docs/method/dp/迭代器模式'},
             {text: '状态模式',link: '/docs/method/dp/状态模式'},
             {text: '观察者模式',link: '/docs/method/dp/观察者模式'},
-            {text: '访问者模式',link: '/docs/method/dp/访问者模式'},
-                  ]
+          ]
           }
       ]
     }
