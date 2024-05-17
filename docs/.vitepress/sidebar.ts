@@ -1,4 +1,20 @@
 export default {
+  '/docs/method/codestrand':[
+    {
+      text: '开发规范',
+      items: [
+        {
+          text: '阿里巴巴 Java开发手册',
+          link: '/docs/method/codestrand/alibaba-java-specification',
+        },
+        {
+          text: 'Google Java 编程风格指南',
+          link: '/docs/method/codestrand/google-java',
+        },
+      
+      ],
+    },
+  ],
   'docs/method/devtheory':[
     {
       text: '开发理论',
@@ -16,7 +32,7 @@ export default {
   ],
   '/docs/method/dp':[
     {
-      text: '设计模式',
+      text: '设计模式详解',
       items: [
           {text: '前置知识',link: '/docs/method/dp/七大原则'},
           {text:'创建型模式',collapsed: true,
@@ -86,9 +102,7 @@ export default {
     {
       text: 'Linux',
       items: [
-        {text: 'Linux',link: '/docs/linux/linux/Linux命令'},
-        {text: 'Git',link: '/docs/linux/git/git'},
-        {text: 'MacOS',link: '/docs/linux/macos/'},
+        {text: 'Linux常见的命令',link: '/docs/linux/linux/Linux命令'},
       ],
     },
   ],
@@ -96,9 +110,7 @@ export default {
     {
       text: 'Git',
       items: [
-        {text: 'Linux',link: '/docs/linux/linux/Linux命令'},
-        {text: 'Git',link: '/docs/linux/git/git'},
-        {text: 'MacOS',link: '/docs/linux/macos/'},
+        {text: 'Git详解',link: '/docs/linux/git/git'},
       ],
     },
   ],
@@ -111,13 +123,13 @@ export default {
       ]
     },
   ],
-  '/docs/linux/macos/': [
+  '/docs/linux/system/': [
     {
-      text: 'MacOS',
+      text: '系统安装',
       items: [
-        {text: 'Linux',link: '/docs/linux/linux/Linux命令'},
-        {text: 'Git',link: '/docs/linux/git/git'},
-        {text: 'MacOS',link: '/docs/linux/macos/'},
+        {text: 'CentOS',link: '/docs/linux/system/centos.md'},
+        {text: 'MacOS',link: '/docs/linux/system/macos.md'},
+        {text: 'rEFInd',link: '/docs/linux/system/rEFInd.md'},
       ],
     },
   ],

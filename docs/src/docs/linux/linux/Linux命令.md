@@ -619,8 +619,8 @@ dr-xrwx---+ 14 root root 4096 May 4 2020 /root
   | :set nonu     | 不显示行号                           |
   | :命令         | 执行该命令                           |
   | :整数         | 跳转到该行                           |
-  | :s/one/two    | 将当前光标所在行的第一个one替换成two |
-  | :s/one/two/g  | 将当前光标所在行的所有one替换成two   |
+  | \:s/one/two    | 将当前光标所在行的第一个one替换成two |
+  | \:s/one/two/g  | 将当前光标所在行的所有one替换成two   |
   | :%s/one/two/g | 将全文中的所有one替换成two           |
   | ?字符串       | 在文本中从下至上搜索该字符串         |
   | /字符串       | 在文本中从上至下搜索该字符串-        |
