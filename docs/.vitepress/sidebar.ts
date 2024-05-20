@@ -1,4 +1,41 @@
 export default {
+  '/docs/front/vue/': [
+    {
+      text: 'Vue.js详解',
+      items: [
+        {text:'vue基础',link: '/docs/front/vue/vue基础'},
+        {text: 'Vue2',link: '/docs/front/vue/'},
+        {text: 'Vue3',link: '/docs/front/vue/vue3'},
+      ],
+    },
+  ],
+  '/docs/java/newfeatures':[
+    {
+      text: 'Java新特性',
+      items: [
+        {text: 'Java8新特性',
+         items: [
+           {text: 'Java8-新特性',link: '/docs/java/newfeatures/java8/Java8-newfeatures'},
+           {text: 'Lambda表达式',link: '/docs/java/newfeatures/java8/Java8-Lambda'},
+           {text: 'Stream流',link: '/docs/java/newfeatures/java8/Java8-StreamAPI'},
+           {text: 'Optional',link: '/docs/java/newfeatures/java8/Java8-optional'},
+           {text: '默认方法',link: '/docs/java/newfeatures/java8/Java8-defaultMethod'},
+           {text: '日期时间',link: '/docs/java/newfeatures/java8/Java8-datetime'},
+           {text: '类型注解',link: '/docs/java/newfeatures/java8/Java8-typeAnno'},
+           {text: '重复注解',link: '/docs/java/newfeatures/java8/Java8-repeatAnno'},
+           {text:'类型推断',link:'/docs/java/newfeatures/java8/Java8-typeInference'}
+          ]
+        },
+        {text: 'Java9新特性',link: '/docs/java/newfeatures/java9'},
+        {text: 'Java10新特性',link: '/docs/java/newfeatures/java10'},
+        {text: 'Java11新特性',link: '/docs/java/newfeatures/java11'},
+        {text: 'Java12新特性',link: '/docs/java/newfeatures/java12'},
+        {text: 'Java13新特性',link: '/docs/java/newfeatures/java13'},
+        
+      ],
+    },
+
+  ],
   '/docs/method/codestrand':[
     {
       text: '开发规范',
@@ -72,16 +109,7 @@ export default {
       ]
     }
   ],
-  '/docs/front/vue/': [
-    {
-      text: 'Vue.js详解',
-      items: [
-        {text:'vue基础',link: '/docs/front/vue/vue基础'},
-        {text: 'Vue2',link: '/docs/front/vue/'},
-        {text: 'Vue3',link: '/docs/front/vue/vue3'},
-      ],
-    },
-  ],
+  
   '/docs/db/redis/': [
     {
       text: 'Redis详解',
@@ -152,4 +180,3 @@ export default {
     }
   ],
 }
-   

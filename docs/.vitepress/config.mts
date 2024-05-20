@@ -97,7 +97,7 @@ export default defineConfig({
     },
     editLink: {
       pattern: 'https://github.com/chizhang977/justin/tree/master/docs/src/:path',
-      text: '我要纠错'
+      text: '😁我要纠错'
     },
     sitemap: {
       hostname: 'https://chizhang977.github.io/justin/'

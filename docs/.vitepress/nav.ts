@@ -18,10 +18,8 @@ export default [
           },
           
         ]
-      },
-      {
-        text: '算法', link: '/docs/data-structure-and-algorithm/1_数据结构'
-      },
+    },
+      
     {
         text: 'Java',
         items: [
@@ -31,12 +29,12 @@ export default [
                 { text: '集合框架', link: '...' },
                 { text: 'IO框架', link: '...' },
                 { text: '并发框架', link: '...' },
-                { text: '新特性', link: '...' },
+                { text: '新特性', link: '/docs/java/newfeatures/java8/Java8-newfeatures' },
                 { text: 'JVM', link: '...' },
             ],
           },
         ]
-      },
+    },
     {
         text: '数据库',
         items: [
@@ -58,13 +56,14 @@ export default [
             ],
           },  
         ]
-      },
+    },
     {
         text: 'Spring',
         items: [
           {
             items: [
                 { text: 'Spring', link: '...' },
+                { text: 'Spring MVC', link: '...' },
                 { text: 'Spring Boot实战', link: '...' },
                 { text: 'Spring Cloud', link: '...' },
                 { text: 'Spring AI', link: '...' },
@@ -73,19 +72,31 @@ export default [
         ]
       },
     {
-        text: '工具|部署',
+        text: 'Linux',
         items: [
           {
             items: [
                 { text: 'Linux', link: '/docs/linux/linux/Linux命令' },
                 { text: 'Git详解', link: '/docs/linux/git/git' },
-                { text: 'Docker', link: '/docs/linux/docker/Docker初识' },
-                { text: 'K8s', link: '/docs/linux/k8s/k8s初识.md' },
                 { text: '系统安装', link: '/docs/linux/system/macos' },
             ],
           },
         ]
-      },
+    },
+    {
+      text: '云原生',
+      items: [
+        {
+          items: [
+            { text: 'Docker', link: '/docs/linux/docker/Docker初识' },
+            { text: 'K8s', link: '/docs/linux/k8s/k8s初识.md' },
+          ],
+        },
+      ]
+  },
+    {
+      text: '算法', link: '/docs/data-structure-and-algorithm/1_数据结构'
+    },
     { text: '方法论', 
       items:[
         { text: '设计模式', link: '/docs/method/dp/七大原则' },
