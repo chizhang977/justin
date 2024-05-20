@@ -26,7 +26,7 @@ export default {
            {text:'类型推断',link:'/docs/java/newfeatures/java8/Java8-typeInference'}
           ]
         },
-        {text: 'Java9新特性',link: '/docs/java/newfeatures/java9'},
+        {text: 'Java9新特性',link: '/docs/java/newfeatures/java9/README'},
         {text: 'Java10新特性',link: '/docs/java/newfeatures/java10'},
         {text: 'Java11新特性',link: '/docs/java/newfeatures/java11'},
         {text: 'Java12新特性',link: '/docs/java/newfeatures/java12'},
