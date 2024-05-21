@@ -101,7 +101,8 @@ com.example.app/module-info.java：
 module com.example.app {
     requires com.example.utils;
     exports com.example.app;
-}```
+}
+```
 com.example.utils/module-info.java：
 
 ```java
@@ -271,7 +272,6 @@ public void test04() {
 }
 ```
 
-**JDK 10的新特性**
 
 
 ## 其它增强

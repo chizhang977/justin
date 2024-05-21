@@ -27,7 +27,7 @@ export default {
           ]
         },
         {text: 'Java9新特性',link: '/docs/java/newfeatures/java9/README'},
-        {text: 'Java10新特性',link: '/docs/java/newfeatures/java10'},
+        {text: 'Java10新特性',link: '/docs/java/newfeatures/java10/README'},
         {text: 'Java11新特性',link: '/docs/java/newfeatures/java11'},
         {text: 'Java12新特性',link: '/docs/java/newfeatures/java12'},
         {text: 'Java13新特性',link: '/docs/java/newfeatures/java13'},
