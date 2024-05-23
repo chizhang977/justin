@@ -9,8 +9,14 @@
       }
     ],
     "routes": [
-      { "src": "/justin/(.*)", "dest": "/docs/.vitepress/dist/$1" },
-      { "src": "/", "dest": "/docs/.vitepress/dist/index.html" }
+      {
+        "src": "/justin/(.*)",
+        "dest": "/justin/$1"
+      },
+      {
+        "src": "/(.*)",
+        "dest": "/justin/index.html"
+      }
     ]
   }
   
