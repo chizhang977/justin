@@ -1,13 +1,18 @@
 {
-    "headers": [
+    "builds": [
       {
-        "source": "/assets/(.*)",
-        "headers": [
-          {
-            "key": "Cache-Control",
-            "value": "max-age=31536000, immutable"
-          }
-        ]
+        "src": "docs/**/*.md",
+        "use": "@vercel/static-build",
+        "config": {
+          "distDir": "dist"
+        }
+      }
+    ],
+    "routes": [
+      {
+        "src": "/(.*)",
+        "dest": "/index.html"
       }
     ]
   }
+  
