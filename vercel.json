@@ -4,14 +4,14 @@
         "src": "docs/**/*.md",
         "use": "@vercel/static-build",
         "config": {
-          "distDir": "dist"
+          "distDir": "docs/.vitepress/dist"
         }
       }
     ],
     "routes": [
       {
         "src": "/(.*)",
-        "dest": "/index.html"
+        "dest": "/docs/.vitepress/dist/$1"
       }
     ]
   }
