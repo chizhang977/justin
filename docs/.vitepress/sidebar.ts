@@ -1,4 +1,21 @@
 export default {
+  'docs/front/res/':[
+    {
+      text: '资源导航',link: '/docs/front/res/index',
+      items: [
+        {text: '前端常用',link: '/docs/front/res/CommandFront'},
+        {text: '后端资源',
+            items: [
+              {text: 'Node',link: '/docs/front/res/Node'},
+            ]
+        }, 
+        {text: '运维工具',link: '/docs/front/res/Operation'},
+        {text: 'Mac 软件',link: '/docs/front/res/Mac'},
+        {text: 'Google 插件',link: '/docs/front/res/GooglePlugin'},
+        {text: '实用工具',link: '/docs/front/res/UtilityTools'},
+      ],
+    },
+  ],
   '/docs/front/vue/': [
     {
       text: 'Vue.js详解',
@@ -72,7 +89,7 @@ export default {
       text: '设计模式详解',
       items: [
           {text: '前置知识',link: '/docs/method/dp/七大原则'},
-          {text:'创建型模式',collapsed: true,
+          {text:'创建型模式',collapsed: true, 
             items:[
             {text: '单例模式',link: '/docs/method/dp/单例模式'},
             {text: '工厂模式',link: '/docs/method/dp/工厂模式'},

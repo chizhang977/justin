@@ -1,0 +1,19 @@
+# 谷歌浏览器插件
+- [**wetab-ai**](https://chromewebstore.google.com/detail/wetab-ai%E6%96%B0%E6%A0%87%E7%AD%BE%E9%A1%B5/aikflfpejipbpjdlfabpgclhblkpaafo) 亲手打造属于自己的高颜值主页的小组件新标签页插件
+- [**Infinity**](https://chromewebstore.google.com/detail/infinity-%E6%96%B0%E6%A0%87%E7%AD%BE%E9%A1%B5-pro/nnnkddnnlpamobajfibfdgfnbcnkgngh) Infinity新标签页Pro让你可以自定义你的新标签页
+- [**稀土掘金**](https://chromewebstore.google.com/detail/%E7%A8%80%E5%9C%9F%E6%8E%98%E9%87%91/lecdifefmmfjnjjinhaennhdlmcaeeeb) 为程序员、设计师、产品经理每日发现优质内容
+- [**refined-github**](https://github.com/sindresorhus/refined-github) 优化 github 默认功能和样式的 chrome 插件
+- [**谷歌翻译**](https://chromewebstore.google.com/detail/google-%E7%BF%BB%E8%AF%91/aapbdbdomjkkjkaonfhkkikfgjllcleb) 浏览网页时可轻松查看翻译版本
+- [**划词翻译**](https://chromewebstore.google.com/detail/%E5%88%92%E8%AF%8D%E7%BF%BB%E8%AF%91/ikhdkkncnoglghljlkmcimlnlhkeamad) 划词 / 截图 / 网页全文 / 音视频翻译扩展
+- [**沙拉查词**](https://chromewebstore.google.com/detail/%E6%B2%99%E6%8B%89%E6%9F%A5%E8%AF%8D-%E8%81%9A%E5%90%88%E8%AF%8D%E5%85%B8%E5%88%92%E8%AF%8D%E7%BF%BB%E8%AF%91/cdonnmffkdaoajfknoeeecmchibpmkmg) 沙拉查词是一款专业划词翻译扩展，为交叉阅读而生
+- [**Adblock Plus**](https://chromewebstore.google.com/detail/adblock-%E2%80%94-%E6%9C%80%E4%BD%B3%E5%B9%BF%E5%91%8A%E6%8B%A6%E6%88%AA%E5%B7%A5%E5%85%B7/gighmmpiobklfepjocnamgkkbiglidom) 最佳广告拦截工具
+- [**篡改猴**](https://chromewebstore.google.com/detail/%E7%AF%A1%E6%94%B9%E7%8C%B4/dhdgffkkebhmkfjojejmpbldmpobfkfo) 使用用户脚本自由地改变网络
+- [**扩展管理器**](https://chrome.google.com/webstore/detail/extension-manager/gjldcdngmdknpinoemndlidpcabkggco/related?utm_source=chrome-ntp-icon) 轻松管理扩展，就不用担心安装太多扩展了
+- [**visbug**](https://github.com/GoogleChromeLabs/ProjectVisBug) 它可以帮助你改变 css，移动元素等等一系类强大的功能,页面调试神器。当然有些时候还是 DevTools 更好用
+- [**Lighthouse**](https://chrome.google.com/webstore/detail/lighthouse/blipmdconlkpinefehnmjammfjpmpbjk) 谷歌出品，检查网页综合性能评分，分析不足
+- [**二维码(QR 码)生成器**](https://chrome.google.com/webstore/detail/二维码qr码生成器qr-code-generato/pflgjjogbmmcmfhfcnlohagkablhbpmg) :手机扫码神器
+- [**Octotree**](https://chrome.google.com/webstore/detail/octotree/bkhaagjahfmjljalopjnoealnfndnagc) :github 上看代码必备神器
+- [**OctoLinker**](https://chrome.google.com/webstore/detail/octolinker/jlmafbaeoofdegohdhinkhilhclaklkp) :能在 github 上看代码的时候 快速链接跳转到依赖的库
+- [**The Great Suspender**](https://chrome.google.com/webstore/detail/the-great-suspender/klbibkeccnjlkjkiokjodocebajanakg) :chrome 太吃内存了，当页面开的很多时候会很卡，它就完美的解决了这个问题。它将几分钟没浏览过的页面都挂载了，当你想看是再重新加载
+- [**WEB 前端助手**](https://chrome.google.com/webstore/detail/web前端助手fehelper/pkgccpejnmalmdinmhkkfafefagiiiad) 支持 JSON 格式化、二维码生成与解码、代码压缩、Markdown 与 HTML 互转、网页滚动截屏、正则表达式、时间转换工具、JSON 比对工具等
+- [**npmhub**](https://github.com/npmhub/npmhub)在 README 下方显示 npm 依赖信息

@@ -2,7 +2,7 @@
 export default [
     { text: '首页', link: '/' },
     {
-      text: '资源导航', link: '/docs/front/res/'
+      text: '资源导航', link: '/docs/front/res/index'
     },
     {
         text: '前端',
