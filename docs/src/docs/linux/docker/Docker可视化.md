@@ -17,29 +17,29 @@ Portainer（官方网站：https://www.portainer.io/ ）是一个开源项目，
 
    Bash
 
-   ```bash
-   docker pull portainer/portainer-ce:latest
-   ```
+```bash
+docker pull portainer/portainer-ce:latest
+```
 
 2. **创建数据卷持久化存储** 为了持久保存Portainer的服务数据（如设置、凭据等），可以创建并挂载数据卷：
 
    Bash
 
-   ```bash
-   docker volume create portainer_data
-   ```
+```bash
+docker volume create portainer_data
+```
 
 3. **启动Portainer容器** 使用以下命令运行Portainer容器，并将本地Docker守护进程套接字映射到容器内，同时挂载上一步创建的数据卷：
 
    Bash
 
-   ```bash
-   docker run -d -p 8000:8000 -p 9000:9000 --name=portainer \
-     -v /var/run/docker.sock:/var/run/docker.sock \
-     -v portainer_data:/data \
-     --restart=always \
-     portainer/portainer-ce
-   ```
+```bash
+docker run -d -p 8000:8000 -p 9000:9000 --name=portainer \
+   -v /var/run/docker.sock:/var/run/docker.sock \
+   -v portainer_data:/data \
+   --restart=always \
+   portainer/portainer-ce
+```
 
    这个命令做了以下几件事：
 

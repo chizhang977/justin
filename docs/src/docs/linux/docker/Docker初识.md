@@ -2,24 +2,26 @@
 
 # 1_Docker初识
 
-### 一、Docker简介
+## 一、Docker简介
 
-1.  理念：一次封装，到处运行（通过对应用组件的封装、分发、运行等生命周期的管理）
+###  理念
+一次封装，到处运行（通过对应用组件的封装、分发、运行等生命周期的管理）
 
-2.  理解：解决了运行环境和配置问题的软件容器，方便做持续集成并有助于整体发布的容器虚拟化技术
+###  理解
+解决了运行环境和配置问题的软件容器，方便做持续集成并有助于整体发布的容器虚拟化技术
 
-3.  虚拟化技术：
+####  虚拟化技术
 
    - 虚拟机：带环境安装解决方案，虚拟硬件，运行操作系统，在运行进程
    - 容器虚拟化：模拟一个完整的操作系统，软件运行所需要的所有资源打包到一个隔离的容器中。应用进程直接运行与宿主的内核，容器内没有自己的内核，没有对硬件进行虚拟，容器之间相互隔离，不相互影响。
 
-4. 官网：     http://www.docker.com 
+### 网站 
+- [Docker 官网](http://www.docker.com)     
 
-   ​		http://www.docker-cn.com 
+- [Docker 官网针对国内](http://www.docker-cn.com)  ​		 
 
-   ​		http://hub.docker.com
-
-### 二、Docker安装
+- [Docker 仓库](http://hub.docker.com)  ​		
+## 二、Docker安装
 
 1、确定linux版本
 
@@ -83,16 +85,37 @@ systemctl stop docker
 yum -y remove docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 rm -rf /var/lib/docker
 ```
+8、1 彻底删除docker所有相关的
+```bash
+# 停止Docker服务
+sudo systemctl stop docker
 
+# 卸载Docker包
+sudo yum remove -y docker-ce docker-ce-cli containerd.io
+
+# 删除所有Docker相关的文件和目录
+sudo rm -rf /var/lib/docker
+sudo rm -rf /etc/docker
+sudo rm -rf /var/run/docker
+sudo rm -rf /var/lib/docker/network/files
+sudo rm -rf /var/log/docker
+sudo rm -rf /etc/systemd/system/docker.service
+sudo rm -rf /etc/systemd/system/docker.socket
+
+# 删除Docker组
+sudo groupdel docker
+
+# 更新包索引
+sudo yum update
+
+```
 9、加速器地址
 
-直接用：（https://cr.console.aliyun.com/cn-hangzhou/instances/mirrors）
+- [阿里云](https://cr.console.aliyun.com/cn-hangzhou/instances/mirrors)
 
-阿里开发者平台 ：https://dev.aliyun.com/search.html
+- [阿里开发者平台](https://dev.aliyun.com/search.html)
 
-10、配置镜像加速器（centos/Mac）
-
-- 针对Docker客户端版本大于 1.10.0 的用户
+10、配置镜像加速器（CentOS）
 
 您可以通过修改daemon配置文件/etc/docker/daemon.json来使用加速器
 
@@ -100,7 +123,7 @@ rm -rf /var/lib/docker
 sudo mkdir -p /etc/docker
 sudo tee /etc/docker/daemon.json <<-'EOF'
 {
-  "registry-mirrors": 你的地址
+  "registry-mirrors": ["https://ugv5cgwj.mirror.aliyuncs.com"]
 }
 EOF
 sudo systemctl daemon-reload
@@ -114,7 +137,7 @@ systemctl restart docker
 ps-fe | grep docker
 ```
 
-### 三、docker原理
+## 三、docker原理
 
 Docker是一个cs结构的系统，Docker守护进程运行在主机上，然后通过Socket连接从客户端访问，守护进程从客户端接受命令并管理运行在主机上的容器。容器是一个运行时环境。
 

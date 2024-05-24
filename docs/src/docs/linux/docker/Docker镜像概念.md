@@ -40,7 +40,7 @@ icon: docker
 
 ### Docker镜像提交
 
-```
+```bash
 docker commit #提交容器副本成为一个新的镜像
 docker commit -m a="author" 容器id 目标镜像名：tag
 ```
@@ -59,25 +59,25 @@ docker commit -m a="author" 容器id 目标镜像名：tag
 
 6. 推送或拉取
 
-   ```bash
-   $ docker login --username=aliyun6765066895 registry.cn-hangzhou.aliyuncs.com  #登陆
-   ```
+```bash
+docker login --username=aliyun6765066895 registry.cn-hangzhou.aliyuncs.com  #登陆
+```
 
    用于登录的用户名为阿里云账号全名，密码为开通服务时设置的密码。
 
    您可以在访问凭证页面修改凭证密码。
 
-   ```bash
-   $ docker pull registry.cn-hangzhou.aliyuncs.com/upjustin/justinubuntu:[镜像版本号]   #拉取	
-   ```
+```bash
+docker pull registry.cn-hangzhou.aliyuncs.com/upjustin/justinubuntu:[镜像版本号]   #拉取	
+```
 
-   ```bash
-   $ docker login --username=aliyun6765066895 registry.cn-hangzhou.aliyuncs.com
-   $ docker tag [ImageId] registry.cn-hangzhou.aliyuncs.com/upjustin/justinubuntu:[镜像版本号]
-   $ docker push registry.cn-hangzhou.aliyuncs.com/upjustin/justinubuntu:[镜像版本号]
-   
-   #推送
-   ```
+```bash
+docker login --username=aliyun6765066895 registry.cn-hangzhou.aliyuncs.com
+docker tag [ImageId] registry.cn-hangzhou.aliyuncs.com/upjustin/justinubuntu:[镜像版本号]
+docker push registry.cn-hangzhou.aliyuncs.com/upjustin/justinubuntu:[镜像版本号]
+
+#推送
+```
 
 ### Docker镜像发布到本地云
 
@@ -89,58 +89,58 @@ docker commit -m a="author" 容器id 目标镜像名：tag
 
   - 下载镜像Docker Registry
 
-  ```bash
-  docker pull registry
-  ```
+```bash
+docker pull registry
+```
 
   
 
   - 运行私有库，相当本地的docker hub
 
-  ```bash
-  docker run -d -p 5000:5000  -v /justin/myregistry/:/tmp/registry --privileged=true registry 
-  ```
+```bash
+docker run -d -p 5000:5000  -v /justin/myregistry/:/tmp/registry --privileged=true registry 
+```
 
   - curl查看私有库镜像
 
-  ```bash
-  curl -XGET http://ip:port/v2/_catalog
-  ```
+```bash
+curl -XGET http://ip:port/v2/_catalog
+```
 
   
 
   - 修改符合规范tag
 
-  ```
-  # docker tag 镜像:tag Host:port/Repository:Tag
-  ```
+```bash
+# docker tag 镜像:tag Host:port/Repository:Tag
+```
 
   
 
   - 修改配置文件支持http
 
-  ```bash
-  vim /etc/docker/daemon.json
-  "insecure-registries":["ip:port"]
-  ```
+```bash
+vim /etc/docker/daemon.json
+"insecure-registries":["ip:port"]
+```
 
   重启docker
 
   - push推送至私有库
 
-  ```
-  docker push 符合规范的tag
-  #验证
-  ```
+```bash
+docker push 符合规范的tag
+#验证
+```
 
 ### 推荐本地云的可视化插件  
-```docker
+```bash
 docker pull joxit/docker-registry-ui:1.5-static
 ```
 
   - pull拉取到本地
 
-```
+```bash
 docker pull 符合规范的tag
 ```
 

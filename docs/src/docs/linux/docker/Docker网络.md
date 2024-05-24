@@ -27,10 +27,10 @@ connect/create/disconnect/inspect/ls/prune/rm
 
   - 查看bridge网络详细信息
 
-    ```bash
-    docker network inspect bridge | grep name
-    ifconfig | grep docker
-    ```
+  ```bash
+  docker network inspect bridge | grep name
+  ifconfig | grep docker
+  ```
 
     ![bridge](/assets/image/docker/bridge.png)
 

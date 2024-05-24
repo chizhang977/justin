@@ -24,29 +24,29 @@ icon: docker
 
 ### 添加数据卷
 
-```
+```bash
 docker run -it -v /宿主机绝对路径目录：/容器内目录 --privileged=true 镜像名
 ```
 
 是否挂在成功，成功后容器和宿主机之间数据共享，容器停止推出后，主机修改后数据依然同步
 
-```
+```bash
 docker inspect 容器id
 ```
 
 ### 带权限的数据卷
 
-```
+```bash
 docker run -it /宿主机绝对路径目录：/容器内目录:ro/rw 镜像名
 ```
 
 ### 卷的继承和共享
 
-```
+```bash
 docker run -it  --privileged=true -v /mydocker/u:/tmp --name u1 ubuntu 
 ```
 
-```
+```bash
 docker run -it  --privileged=true --volumes-from 父类  --name u2 ubuntu
 ```
 

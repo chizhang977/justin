@@ -85,7 +85,7 @@ jlink --module-path $JAVA_HOME/jmods --add-modules java.base,java.sql --output c
 假设有两个模块：`com.example.app` 和 `com.example.utils`。
 
 创建模块目录结构：
-```arduino
+```bash
 project-root/
 ├── com.example.app/
 │   ├── module-info.java

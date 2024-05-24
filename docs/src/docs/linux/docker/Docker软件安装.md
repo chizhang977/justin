@@ -24,14 +24,14 @@ collation_server=utf8_general_ci
 character_set_server=utf8
 ```
 
-```
+```bash
 #重启 mysql
 dokcer restart mysql
 ```
 
 ## Redis
 
-```
+```bash
 docker run -p 6379:6379 --name myredis \
 --privileged=true \
 -v /root/app/redis/redis.conf:/etc/redis/redis.conf \
