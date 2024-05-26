@@ -6,7 +6,9 @@ hero:
   name: "在每一次敲击中悟道"
   text: "智慧菩提下 禅意编码路"
   tagline:  "以平常心，筑技术禅，于平凡中见真章，积极行走在知识的彼岸"
-  image: "/logo.svg"
+  image:
+    src: "/logo.svg"
+    alt: 
   actions:
     - theme: brand
       text: 快速开始 ->
@@ -43,6 +45,8 @@ features:
       src: /icon/生活服务.svg  
     title: 技术之外
     details: 技术之外还应该做一些其他事情   
+  
+  
 ---
 ::: tip
 此网站专注于技术探索与个人成长记录，<b>不涉及任何<lable style="color:red;">商业用途</lable></b>。在这里，我分享编程学习的心得、挑战与突破，旨在为志同道合者提供灵感，共同见证技术旅程的每一个进步。

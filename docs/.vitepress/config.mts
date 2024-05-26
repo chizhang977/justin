@@ -88,7 +88,7 @@ export default defineConfig({
         link: 'https://gitee.com/boycheng',
         // 也可以为无障碍添加一个自定义标签 (可选但推荐):
         ariaLabel: 'cool link'
-      }
+      },
       
     ],
     footer: {

@@ -4,7 +4,7 @@ export default {
       text: '资源导航',link: '/docs/front/res/index',
       items: [
         {text: '前端常用',link: '/docs/front/res/CommandFront'},
-        {text: '后端资源',
+        {text: '后端资源', collapsed: true,
             items: [
               {text: 'Node',link: '/docs/front/res/Node'},
             ]
@@ -30,7 +30,7 @@ export default {
     {
       text: 'Java新特性',
       items: [
-        {text: 'Java8新特性',
+        {text: 'Java8新特性',collapsed: true,
          items: [
            {text: 'Java8-新特性',link: '/docs/java/newfeatures/java8/Java8-newfeatures'},
            {text: 'Lambda表达式',link: '/docs/java/newfeatures/java8/Java8-Lambda'},
@@ -45,9 +45,13 @@ export default {
         },
         {text: 'Java9新特性',link: '/docs/java/newfeatures/java9/README'},
         {text: 'Java10新特性',link: '/docs/java/newfeatures/java10/README'},
-        {text: 'Java11新特性',link: '/docs/java/newfeatures/java11'},
-        {text: 'Java12新特性',link: '/docs/java/newfeatures/java12'},
-        {text: 'Java13新特性',link: '/docs/java/newfeatures/java13'},
+        {text: 'Java11新特性',link: '/docs/java/newfeatures/java11/README'},
+        {text: 'Java12新特性',link: '/docs/java/newfeatures/java12/README'},
+        {text: 'Java13新特性',link: '/docs/java/newfeatures/java13/README'},
+        {text: 'Java14新特性',link: '/docs/java/newfeatures/java14/README'},
+        {text: 'Java15新特性',link: '/docs/java/newfeatures/java15/README'},
+        {text: 'Java16新特性',link: '/docs/java/newfeatures/java16/README'},
+        {text: 'Java17新特性',link: '/docs/java/newfeatures/java17/README'},
         
       ],
     },

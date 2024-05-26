@@ -23,7 +23,7 @@
 
 :::
 
-## 局部变量类型推断
+## 1、局部变量类型推断
 
 Java 10 引入了局部变量类型推断特性，通过使用 `var` 关键字，可以在声明局部变量时省略显式的类型声明。编译器会根据右侧的表达式推断变量的类型。
 
@@ -41,7 +41,7 @@ for (var item : list) {
 - `var` 不能用于没有初始化的变量声明。
 - 使用 `var` 要确保代码的可读性，避免滥用导致代码难以理解。
 
-## 垃圾收集器接口（Garbage-Collector Interface）
+## 2、垃圾收集器接口（Garbage-Collector Interface）
 
 Java 10 引入了一个新的垃圾收集器接口，允许更容易地添加、删除或替换垃圾收集器。这使得垃圾收集器的开发和实验变得更加灵活。
 
@@ -50,7 +50,7 @@ Java 10 引入了一个新的垃圾收集器接口，允许更容易地添加、
 - 引入新的 `-XX:+UseConcMarkSweepGC` 和 `-XX:+UseG1GC` 标志，用于启用不同的垃圾收集器。
 - 使用新的接口可以更轻松地集成定制的垃圾收集器。
 
-## 并行垃圾回收改进（Parallel Full GC for G1）
+## 3、并行垃圾回收改进（Parallel Full GC for G1）
 
 G1 垃圾收集器在 Java 10 中进行了改进，现在可以在并行模式下执行完全垃圾回收（Full GC），以提高性能。
 
@@ -58,7 +58,7 @@ G1 垃圾收集器在 Java 10 中进行了改进，现在可以在并行模式�
 
 - 在启用 G1 垃圾收集器时，使用 `-XX:+UseG1GC` 选项，完全垃圾回收将自动并行执行。
 
-##  合并 JDK 和 JRE 镜像（Consolidate the JDK and JRE Images）
+##  4、合并 JDK 和 JRE 镜像（Consolidate the JDK and JRE Images）
 
 Java 10 合并了 JDK 和 JRE 镜像，现在只有一个统一的 JDK 镜像。这简化了 JDK 和 JRE 的管理，减少了冗余。
 
@@ -66,7 +66,7 @@ Java 10 合并了 JDK 和 JRE 镜像，现在只有一个统一的 JDK 镜像。
 
 - 安装和使用 Java 10 时，不再区分 JDK 和 JRE，只有一个统一的 JDK 镜像。
 
-##  应用类数据共享（Application Class-Data Sharing）
+##  5、应用类数据共享（Application Class-Data Sharing）
 
 Java 10 扩展了类数据共享（Class-Data Sharing, CDS）特性，现在可以将应用程序的类数据预加载到共享存储区中，以提高启动时间和内存使用效率。
 
@@ -80,7 +80,7 @@ java -Xshare:dump -XX:SharedArchiveFile=app-cds.jsa -cp app.jar MainClass
 java -Xshare:on -XX:SharedArchiveFile=app-cds.jsa -cp app.jar MainClass
 ```
 
-## 备用内存设备的实验性支持（Experimental Java-Based JIT Compiler）
+## 6、备用内存设备的实验性支持（Experimental Java-Based JIT Compiler）
 
 Java 10 引入了 Graal 作为实验性的基于 Java 的 JIT 编译器。Graal 提供了高性能的动态编译和优化功能。
 
@@ -91,7 +91,7 @@ Java 10 引入了 Graal 作为实验性的基于 Java 的 JIT 编译器。Graal 
 java -XX:+UnlockExperimentalVMOptions -XX:+UseJVMCICompiler -XX:+EnableJVMCI -XX:+UseGraal
 ```
 
-## 根证书（Root Certificates）
+## 7、根证书（Root Certificates）
 
 Java 10 包含了默认的根证书集合，简化了开发和部署需要安全连接的应用程序。
 
@@ -99,7 +99,7 @@ Java 10 包含了默认的根证书集合，简化了开发和部署需要安全
 
 - 安装和使用 Java 10 时，根证书已经内置，不需要额外配置。
 
-## 线程本地握手（Thread-Local Handshakes）
+## 8、线程本地握手（Thread-Local Handshakes）
 
 Java 10 引入了线程本地握手机制，允许 JVM 暂停单个线程而不是所有线程，以执行特定操作。这提高了调试和诊断的灵活性和性能。
 
