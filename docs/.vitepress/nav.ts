@@ -28,6 +28,7 @@ export default [
                 { text: '面向对象', link: '...' },
                 { text: '集合框架', link: '...' },
                 { text: 'IO框架', link: '...' },
+                { text: '反射', link: '/docs/java/reflect/README' },
                 { text: '并发框架', link: '...' },
                 { text: '新特性', link: '/docs/java/newfeatures/java8/Java8-newfeatures' },
                 { text: 'JVM', link: '...' },

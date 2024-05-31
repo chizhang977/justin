@@ -147,32 +147,19 @@ export default {
       ],
     },
   ],
-  '/docs/linux/linux/': [
+  '/docs/linux/': [
     {
       text: 'Linux',
       items: [
         {text: 'Linux常见的命令',link: '/docs/linux/linux/Linux命令'},
       ],
     },
-  ],
-  '/docs/linux/git/': [
     {
       text: 'Git',
       items: [
         {text: 'Git详解',link: '/docs/linux/git/git'},
       ],
     },
-  ],
-  '/docs/linux/k8s/': [
-    {
-      text: 'Kubernetes',
-      items:[
-        {text: 'k8s',link: '/docs/linux/k8s/k8s初识'},
-        
-      ]
-    },
-  ],
-  '/docs/linux/system/': [
     {
       text: '系统安装',
       items: [
@@ -180,6 +167,19 @@ export default {
         {text: 'MacOS',link: '/docs/linux/system/macos.md'},
         {text: 'rEFInd',link: '/docs/linux/system/rEFInd.md'},
       ],
+    },
+  ],
+  
+  '/docs/linux/k8s/': [
+    {
+      text: 'Kubernetes',
+      items:[
+        {text: 'k8s安装',link: '/docs/linux/k8s/k8s安装'},
+        {text: 'k8s入门',link: '/docs/linux/k8s/k8s初识'},
+        {text: 'k8s出现的bug总结',link: '/docs/linux/k8s/ingress安装问题'},
+        
+        
+      ]
     },
   ],
   '/docs/linux/docker/': [
