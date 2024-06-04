@@ -176,6 +176,7 @@ export default {
       items:[
         {text: 'k8s安装',link: '/docs/linux/k8s/k8s安装'},
         {text: 'k8s入门',link: '/docs/linux/k8s/k8s初识'},
+        {text: 'kubesphere',link: '/docs/linux/k8s/kubesphere'},
         {text: 'k8s出现的bug总结',link: '/docs/linux/k8s/ingress安装问题'},
         
         
