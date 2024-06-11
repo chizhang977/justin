@@ -585,7 +585,101 @@ dr-xrwx---+ 14 root root 4096 May 4 2020 /root
 # 或
 101 linuxprobe ALL=(ALL) NOPASSWD:/usr/bin/cat,/usr/sbin/reboot
 ```
+## 测试网络速率工具
+1. 使用 speedtest-cli
+speedtest-cli 是一个命令行工具，可以测试你的网络速度。以下是安装和使用方法：
 
+安装
+
+对于基于 Red Hat 的系统（如 Fedora），可以使用：
+
+```bash
+sudo dnf install speedtest-cli
+```
+
+安装完成后，可以使用以下命令测试网络速度：
+
+```bash
+speedtest-cli
+```
+这将显示下载和上传速度。
+
+2. 使用 iperf
+iperf 是一个用于测量网络带宽的工具，可以在两个终端之间测试网络性能。
+
+安装
+
+对于基于 Red Hat 的系统：
+
+```bash
+sudo dnf install iperf3
+```
+使用
+在服务器端运行：
+
+```bash
+iperf3 -s
+```
+在客户端运行（将 server_ip 替换为服务器的 IP 地址）：
+
+```bash
+iperf3 -c server_ip
+```
+这将显示客户端和服务器之间的带宽。
+
+3. 使用 nload
+nload 是一个实时监控网络流量和带宽使用情况的工具。
+
+安装
+
+对于基于 Red Hat 的系统：
+
+```bash
+sudo dnf install nload
+```
+使用
+安装后，运行：
+
+```bash
+nload
+```
+这将显示网络接口的实时流量和带宽使用情况。
+
+4. 使用 ifstat
+ifstat 是一个简单的工具，可以实时显示网络接口的带宽使用情况。
+
+安装
+
+对于基于 Red Hat 的系统：
+
+```bash
+sudo dnf install ifstat
+```
+使用
+安装后，运行：
+
+```bash
+ifstat
+```
+这将显示每个网络接口的传入和传出流量。
+
+5. 使用 bmon
+bmon 是一个带宽监控和调试工具。
+
+安装
+
+对于基于 Red Hat 的系统：
+
+```bash
+sudo dnf install bmon
+```
+使用
+安装后，运行：
+
+```bash
+bmon
+```
+这将显示网络接口的实时带宽使用情况，并提供图形化的流量图。
 ## Vim文本编辑器
 ::: tip
 **命令模式**：控制光标移动，可对文本进行复制、粘贴、删除和查找

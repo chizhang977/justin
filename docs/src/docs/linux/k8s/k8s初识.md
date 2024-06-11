@@ -2,6 +2,8 @@
 date: 2024-04-10
 ---
 # Kubernetes初识
+[API 文档](https://kubernetes.io/zh-cn/docs/reference/kubectl/)
+
 Kubernetes 为你提供了一个可弹性运行分布式系统的框架。 Kubernetes 会满足你的扩展要求、故障转移、部署模式等。 例如，Kubernetes 可以轻松管理系统的 Canary 部署。
 
 ## kubernetes具有以下特性

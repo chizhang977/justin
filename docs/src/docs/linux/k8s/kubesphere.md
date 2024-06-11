@@ -269,7 +269,7 @@ roleRef:
   name: leader-locking-nfs-client-provisioner
   apiGroup: rbac.authorization.k8s.io
 ```  
-## metrics-server
+### metrics-server
 集群指标监控组件
 ```yaml
 apiVersion: v1
