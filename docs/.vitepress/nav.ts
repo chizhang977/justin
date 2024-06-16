@@ -90,7 +90,7 @@ export default [
         {
           items: [
             { text: 'Docker', link: '/docs/linux/docker/Docker初识' },
-            { text: 'K8s', link: '/docs/linux/k8s/k8s初识.md' },
+            { text: 'Kubernetes', link: '/docs/linux/k8s/k8s初识.md' },
           ],
         },
       ]

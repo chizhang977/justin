@@ -178,6 +178,7 @@ export default {
         {text: 'k8s入门',link: '/docs/linux/k8s/k8s初识'},
         {text: 'kubesphere安装',link: '/docs/linux/k8s/kubesphere'},
         {text: 'kubesphere入门',link: '/docs/linux/k8s/kubesphere1'},
+        {text: 'kubesphere基础',link: '/docs/linux/k8s/kubesphere2'},
         {text: 'k8s出现的bug总结',link: '/docs/linux/k8s/ingress安装问题'},
         
         
