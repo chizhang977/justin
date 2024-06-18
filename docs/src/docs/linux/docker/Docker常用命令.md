@@ -117,7 +117,7 @@ docker commit -m "修改" -a "作者" 容器id 新的镜像名
 
 镜像传输
 ```bash
-# 将镜像保存成压缩包
+# 将镜像保存成压缩包,这个镜像要写成 镜像名:tag，写成镜像id，会出现《none》
 docker save -o myredis.tar redis:6.2.14
 
 # 别的机器加载这个镜像
