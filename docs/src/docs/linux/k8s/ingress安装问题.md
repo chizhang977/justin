@@ -97,7 +97,7 @@ kubectl get uses admin
 ## not ready after 5000 MILLISECONDS
 在并行执行流水线中，就会出现此错误,之后在kubesphere 的开发者社区看到有解决方案。
 
-再有就是可以尝试修改下 jenkins-casc-config 这个 configmap 中，下面 jenkins-user.yaml 部分，maven 对应的 jnlp 容器的 memory 和 cpu limit 修改大点，再试试是否有好转。
+>再有就是可以尝试修改下 jenkins-casc-config 这个 configmap 中，下面 jenkins-user.yaml 部分，maven 对应的 jnlp 容器的 memory 和 cpu limit 修改大点，再试试是否有好转。
 ```bash
 - name: "maven"
   namespace: "kubesphere-devops-worker"
