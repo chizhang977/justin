@@ -89,6 +89,15 @@ export default defineConfig({
         // 也可以为无障碍添加一个自定义标签 (可选但推荐):
         ariaLabel: 'cool link'
       },
+      {
+        icon: {
+          svg: '<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="40" fill="gray" /><circle cx="35" cy="40" r="8" fill="white" /><circle cx="65" cy="40" r="8" fill="white" /><circle cx="35" cy="40" r="4" fill="gray" /><circle cx="65" cy="40" r="4" fill="gray" /><path d="M40,60 Q50,70 60,60" stroke="white" stroke-width="2" fill="none" /></svg>'
+        },
+        link: 'https://rare-vulture-truly.ngrok-free.app/',
+        // 也可以为无障碍添加一个自定义标签 (可选但推荐):
+        ariaLabel: 'cool link'
+      },
+      
       
     ],
     footer: {

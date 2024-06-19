@@ -2,7 +2,9 @@
 icon: docker
 ---
 # 5_Docker 常见命令
-
+::: tip docker
+这个页面是 Docker 命令的详细说明，是通过`docker version`命令获取翻译的。
+:::
 ## Docker 命令及说明
 
 ### 管理命令
