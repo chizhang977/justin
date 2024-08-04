@@ -17,11 +17,10 @@
 
 ### 网站 
 - [Docker 官网](http://www.docker.com)     
-
-- [Docker 官网针对国内](http://www.docker-cn.com)  ​		 
+ ​		 
 
 - [Docker 仓库](http://hub.docker.com)  ​		
-## 二、Docker安装
+## 二、[Docker安装](https://docs.docker.com/engine/install/centos/)
 
 1、确定linux版本
 

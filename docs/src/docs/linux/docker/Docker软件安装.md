@@ -291,8 +291,7 @@ docker run -p 27017:27017 --name mongo \
 -d mongo:4
 ```
 
-## [#](https://www.macrozheng.com/mall/deploy/mall_deploy_docker.html#minio安装)MinIO安装
-
+## [MinIO安装](https://www.macrozheng.com/mall/deploy/mall_deploy_docker.html#minio安装)
 - 下载MinIO的Docker镜像；
 
 ```bash

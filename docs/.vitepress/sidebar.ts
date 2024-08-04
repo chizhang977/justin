@@ -3,6 +3,7 @@ export default {
     {
       text: '资源导航',link: '/docs/front/res/index',
       items: [
+        {text: '友情链接',link: '/docs/front/res/friend'},
         {text: '前端常用',link: '/docs/front/res/CommandFront'},
         {text: '后端资源', collapsed: true,
             items: [
