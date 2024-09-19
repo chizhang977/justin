@@ -15,7 +15,7 @@ hero:
       link: /docs/linux/docker/Docker初识
     - theme: alt
       text: 最新文章
-      link: /api-examples
+      link: /docs/linux/linux/clash
     - theme: alt
       text: 在 Gihub 上查看  
       link: https://github.com/chizhang977/justin
