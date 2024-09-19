@@ -28,6 +28,14 @@ export default {
     },
   ],
   '/docs/java/newfeatures':[
+  
+      
+    { text: '面向对象', link: '...' },
+    { text: '集合框架', link: '...' },
+    { text: 'IO框架', link: '...' },
+    { text: '反射', link: '/docs/java/reflect/README' },
+    { text: '并发框架', link: '...' },
+    { text: 'JVM', link: '...' },
     {
       text: 'Java新特性',
       items: [
@@ -153,6 +161,7 @@ export default {
       text: 'Linux',
       items: [
         {text: 'Linux常见的命令',link: '/docs/linux/linux/Linux命令'},
+        {text: 'Clash安装',link: '/docs/linux/linux/clash'},
       ],
     },
     {
