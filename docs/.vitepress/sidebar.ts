@@ -169,15 +169,37 @@ const sidebar: DefaultTheme.Sidebar = {
   ],
 
   '/docs/method/': [
-    group('设计模式', [
-      { text: '七大原则', link: '/docs/method/dp/七大原则' },
+    group('设计模式总览', [
+      { text: '总览与原则', link: '/docs/method/dp/七大原则' }
+    ]),
+    group('创建型模式', [
       { text: '单例模式', link: '/docs/method/dp/单例模式' },
       { text: '工厂模式', link: '/docs/method/dp/工厂模式' },
       { text: '建造者模式', link: '/docs/method/dp/建造者模式' },
-      { text: '代理模式', link: '/docs/method/dp/代理模式' },
-      { text: '策略模式', link: '/docs/method/dp/策略模式' },
-      { text: '观察者模式', link: '/docs/method/dp/观察者模式' }
+      { text: '原型模式', link: '/docs/method/dp/原型模式' }
     ]),
+    group('结构型模式', [
+      { text: '适配器模式', link: '/docs/method/dp/适配器模式' },
+      { text: '桥接模式', link: '/docs/method/dp/桥接模式' },
+      { text: '装饰器模式', link: '/docs/method/dp/装饰器模式' },
+      { text: '组合模式', link: '/docs/method/dp/组合模式' },
+      { text: '外观模式', link: '/docs/method/dp/外观模式' },
+      { text: '享元模式', link: '/docs/method/dp/享元模式' },
+      { text: '代理模式', link: '/docs/method/dp/代理模式' },
+    ], true),
+    group('行为型模式', [
+      { text: '责任链模式', link: '/docs/method/dp/责任链模式' },
+      { text: '命令模式', link: '/docs/method/dp/命令模式' },
+      { text: '解释器模式', link: '/docs/method/dp/解释器模式' },
+      { text: '迭代器模式', link: '/docs/method/dp/迭代器模式' },
+      { text: '中介者模式', link: '/docs/method/dp/中介者模式' },
+      { text: '备忘录模式', link: '/docs/method/dp/备忘录模式' },
+      { text: '观察者模式', link: '/docs/method/dp/观察者模式' },
+      { text: '状态模式', link: '/docs/method/dp/状态模式' },
+      { text: '策略模式', link: '/docs/method/dp/策略模式' },
+      { text: '模板方法模式', link: '/docs/method/dp/模板方法模式' },
+      { text: '访问者模式', link: '/docs/method/dp/访问者模式' }
+    ], true),
     group('工程规范', [
       { text: '阿里 Java 规范', link: '/docs/method/codestrand/alibaba-java-specification' },
       { text: 'Google Java 风格', link: '/docs/method/codestrand/google-java' },

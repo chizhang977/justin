@@ -44,7 +44,7 @@ export default [
         text: '工程设计',
         items: [
           { text: 'Spring Boot', link: '/docs/java/springboot/production-guide' },
-          { text: '设计原则', link: '/docs/method/dp/七大原则' },
+          { text: '设计模式', link: '/docs/method/dp/七大原则' },
           { text: 'CAP', link: '/docs/method/devtheory/cap' },
           { text: 'ACID', link: '/docs/method/devtheory/transaction' }
         ]

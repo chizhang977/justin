@@ -1,577 +1,536 @@
 ---
 title: MySQL 主从复制
 ---
+
 # MySQL 主从复制
 
-MySQL 主从复制用于把主库的数据变更同步到从库。常见用途是读写分离、数据备份、故障切换、报表查询隔离。
+MySQL 主从复制用于把主库的数据变更同步到从库。它常用于读写分离、报表查询隔离、备份卸载、故障切换演练和容灾架构建设。
 
-## 基本架构
+这篇文档以 **MySQL 8.0 + GTID 复制** 为主线。MySQL 5.7 仍然可以参考，差异主要在命令命名上：
+
+| MySQL 8.0.23+ | MySQL 5.7 / 较早 8.0 | 含义 |
+| --- | --- | --- |
+| source | master | 主库 |
+| replica | slave | 从库 |
+| `CHANGE REPLICATION SOURCE TO` | `CHANGE MASTER TO` | 配置复制源 |
+| `START REPLICA` | `START SLAVE` | 启动复制 |
+| `SHOW REPLICA STATUS\G` | `SHOW SLAVE STATUS\G` | 查看复制状态 |
+| `--source-data=2` | `--master-data=2` | 备份时记录 binlog 位点 |
+
+## 复制架构
 
 ```text
 应用写入
-  -> 主库 master
+  -> 主库 source
       -> binlog
           -> 从库 IO 线程拉取
               -> relay log
                   -> SQL 线程重放
-                      -> 从库 slave
+                      -> 从库 replica
 ```
 
-核心日志：
+核心组件：
 
 - **binlog**：主库二进制日志，记录数据变更。
-- **relay log**：从库中继日志，从主库拉取后先保存到本地。
+- **relay log**：从库中继日志，从主库拉取 binlog 后先落到本地。
+- **IO thread**：从库连接主库并拉取 binlog。
+- **SQL thread**：从库重放 relay log，把数据变更应用到本地。
+- **GTID**：全局事务 ID，用事务编号追踪复制进度，避免手工维护 `binlog file + position`。
 
-核心线程：
+## 使用场景
 
-- **IO 线程**：从主库拉取 binlog。
-- **SQL 线程**：在从库重放 relay log。
-
-## 主从复制用途
-
-### 1. 读写分离
-
-主库负责写，从库负责读。
+### 读写分离
 
 ```text
-写请求 -> master
-读请求 -> slave
+写请求 -> 主库
+读请求 -> 从库
 ```
 
-注意：主从复制通常是异步的，从库可能有延迟。对一致性要求高的读请求，例如刚提交订单后立刻查询订单详情，应该读主库或做一致性处理。
+复制通常是异步的，从库可能存在延迟。刚写完就要立刻强一致读取的业务，例如支付、订单详情、库存扣减结果，应读主库或做一致性策略。
 
-### 2. 备份
+### 备份卸载
 
-可以在从库上执行备份，减少对主库的影响。
+可以在从库执行备份，降低主库压力。但主从复制不能替代备份，因为误删、误更新也会同步到从库。
 
-### 3. 报表查询
+### 报表隔离
 
-复杂统计 SQL 可以放到从库，避免影响主库写入。
+复杂统计 SQL 可以放到从库执行，避免影响主库写入链路。
 
-### 4. 故障切换
+### 故障切换
 
-主库故障时，可以提升从库为新的主库。但故障切换需要配合高可用组件或人工流程。
+主库故障时，可以把从库提升为新主库。但这需要明确的切换流程、数据一致性检查和应用连接切换，不是“搭了主从就自动高可用”。
 
-## 搭建准备
+## 实验环境
 
-示例：
+建议用两台云服务器放在同一个 VPC 中，复制流量走私网。
 
+| 角色 | 主机名 | 私网 IP | 端口 |
+| --- | --- | --- | --- |
+| 主库 | mysql-source | `10.0.0.10` | 3306 |
+| 从库 | mysql-replica | `10.0.0.11` | 3306 |
 
-| 角色   | IP            | 端口 |
-| ------ | ------------- | ---- |
-| master | 192.168.56.10 | 3306 |
-| slave  | 192.168.56.11 | 3306 |
+下文所有 IP 都是示例，实际操作时替换成你腾讯云服务器的 **私网 IP**。不要用公网 IP 做主从复制，公网链路更慢，也更容易暴露数据库端口。
 
-两台机器需要：
+安全组建议：
 
-- 关闭`selinux`和`firewalld`
-- 设置默认文件句柄
-- 时间同步
-- 更换yum 仓库文件
-- MySQL 版本尽量一致。
-- 网络互通。
-- server_id 不同。
-- 主库开启 binlog。
-- 从库能访问主库。
+| 方向 | 协议端口 | 来源 | 说明 |
+| --- | --- | --- | --- |
+| 入站 | TCP:22 | 你的公网 IP/32 | SSH 登录 |
+| 入站 | TCP:3306 | 从库私网 IP/32 | 主库允许从库连接 |
+| 入站 | TCP:3306 | 运维机或内网网段 | 可选，从库需要远程管理时才放通 |
 
-### 关闭`selinux`和`firewalld
+不要把 `3306` 长期开放给 `0.0.0.0/0` 或 `::/0`。如果只是临时排查，排查完立刻收回。
 
-```shell
-root@localhost(192.168.199.107)~>sed -i 's@SELINUX=enforcing@SELINUX=disabled@g' 
-/etc/selinux/config
+## 操作总览
+
+```text
+1. 准备两台服务器和安全组
+2. 两台机器安装 MySQL
+3. 主库开启 binlog 和 GTID
+4. 从库设置 server-id、relay log、只读
+5. 主库创建复制账号
+6. 如果主库已有数据，先做一致性备份并导入从库
+7. 从库配置复制源
+8. 启动复制并验证
+9. 做延迟、断连、误写等排障演练
+10. 练习结束后销毁云资源，避免继续计费
 ```
 
-### 设置文件句柄
+## 系统准备
 
-```shell
-cat >> /etc/security/limits.conf << EOF
-* soft nofile 65535
-* hard nofile 65535
-* soft nproc 65535
-* hard nproc 65535
-EOF
+以下命令在两台机器都执行。
 
+### 基础工具
+
+Ubuntu 22.04：
+
+```bash
+sudo apt update
+sudo apt install -y mysql-server wget vim net-tools chrony
 ```
+
+CentOS 7：
+
+```bash
+sudo yum install -y wget vim net-tools chrony
+```
+
+> CentOS 7 已进入生命周期末期，新环境更建议使用 Ubuntu 22.04、Rocky Linux、AlmaLinux 或腾讯云 TencentOS。
 
 ### 时间同步
 
-```shell
-root@localhost(192.168.199.107)~>yum install -y ntpdate
-root@localhost(192.168.199.107)~>ntpdate ntp1.aliyun.com
-#设置每天4点同步一次
-root@localhost(192.168.199.107)~>crontab -e
-0 4 * * * /usr/sbin/ntpdate -s ntp1.aliyun.com
+```bash
+sudo systemctl enable --now chrony
+timedatectl
 ```
 
-### 更换yum仓库文件
+如果时间不同步，证书、日志排查、复制延迟判断都会变得混乱。
 
-```shell
-root@localhost(192.168.199.107)/root> mkdir -pv /etc/yum.repos.d/bak
-mkdir: created directory ‘/etc/yum.repos.d/bak’
-root@localhost(192.168.199.107)/root> mv /etc/yum.repos.d/*.repo /etc/yum.repos.d/bak/
-root@localhost(192.168.199.107)/root> curl http://mirrors.aliyun.com/repo/Centos-7.repo -o 
-/etc/yum.repos.d/Centos-7.repo
-root@localhost(192.168.199.107)/root> curl http://mirrors.aliyun.com/repo/epel-7.repo -o 
-/etc/yum.repos.d/epel-7.repo
-root@localhost(192.168.199.107)/root> sed -i '/aliyuncs/d' /etc/yum.repos.d/Centos-7.repo
-root@localhost(192.168.199.107)/root> yum clean all
-root@localhost(192.168.199.107)/root> yum repolist all
-```
+### 文件句柄
 
-### 安装MySQL
-
-#### 下载安装包
-
-国内下载地址：[http://mirrors.sohu.com/mysql/MySQL-5.7/mysql-5.7.36-1.el7.x86\_64.rpm-bundle.tar](http://mirrors.sohu.com/mysql/MySQL-5.7/mysql-5.7.36-1.el7.x86_64.rpm-bundle.tar)
-
-官网下载地址：[https://cdn.mysql.com/archives/mysql-5.7/mysql-5.7.36-1.el7.x86\_64.rpm-bundle.tar](https://cdn.mysql.com/archives/mysql-5.7/mysql-5.7.36-1.el7.x86_64.rpm-bundle.tar)
-
-#### 安装程序包
-
-```
-#卸载mariadb-libs
-root@localhost(192.168.199.107)/root> rpm -qa | egrep mariadb
-root@localhost(192.168.199.107)/root> yum remove -y mariadb-libs
-```
-
-```
-#安装MySQL程序包
-root@localhost(192.168.199.107)/root> mkdir -pv mysql
-mkdir: created directory 'mysql'
-root@localhost(192.168.199.107)/root> tar xf mysql-5.7.36-1.el7.x86_64.rpm-bundle.tar -C mysql
-root@localhost(192.168.199.107)/root> cd mysql/
-root@localhost(192.168.199.107)/root/mysql> yum localinstall *.rpm -y
-
-```
-
-#### 启动服务
-
-```
-root@localhost(192.168.199.107)/root> systemctl enable mysqld ; systemctl start mysqld
-root@localhost(192.168.199.107)/root> netstat -ntplu | egrep 3306
-```
-
-#### 登录MySQL
-
-MySQL启动后，初始化密码存放在 日志文件中
-
-```shell
-root@localhost(192.168.199.107)/root> egrep -ri password /var/log/mysqld.log
-2023-07-06T02:48:50.170275Z 1 [Note] A temporary password is generated for root@localhost: 
-bsI,9pJ)JQ1o
-#登录mysql
-root@localhost(192.168.199.107)/root> mysql -uroot -p
-Enter password: #密码为：bsI,9pJ)JQ1o
-Welcome to the MySQL monitor.  Commands end with ; or \g.
-Your MySQL connection id is 2
-Server version: 5.7.36
-Copyright (c) 2000, 2021, Oracle and/or its affiliates.
-mysql>
-Oracle is a registered trademark of Oracle Corporation and/or its
-affiliates. Other names may be trademarks of their respective
-owners.
-Type 'help;' or '\h' for help. Type '\c' to clear the current input statement
-```
-
-#### 修改初始密码
-
-MySQL登录后第一件事是修改初始密码，否则任何操作都受限
-
-```shell
-#提示需要使用 alter user 修改密码再进行操作
-mysql> show databases;
-ERROR 1820 (HY000): You must reset your password using ALTER USER statement before 
-executing this statement.
-#修改密码，密码要求大小写+数字
-mysql> alter user user() identified by 'Root@123';
-Query OK, 0 rows affected (0.00 sec)
-#修改后就可直接进行操作
-mysql> show databases
-```
-
-> 如果需要修改为任意简单的密码，可进行如下操作
-
-```shell
-#密码过于简单会提示不安全不符合当前要求策略
-mysql> alter user user() identified by '123123';
-ERROR 1819 (HY000): Your password does not satisfy the current policy requirements
-#修改策略
-mysql> set global validate_password_policy=0;
-Query OK, 0 rows affected (0.00 sec)
-mysql> set global validate_password_length=1;
-Query OK, 0 rows affected (0.00 sec)
-#再次使用简单密码进行修改，修改成功
-mysql> alter user user() identified by '123123';
-Query OK, 0 rows affected (0.00 sec)
-```
-
-### 一键安装脚本
+小实验不一定需要改，生产环境建议评估后配置：
 
 ```bash
-#!/bin/bash
-# dest: MySQL 5.7 自动安装脚本（适用于 CentOS 7）
-
-set -e  # 遇到错误即退出，避免后续执行无意义
-
-# 1. 检查系统版本（仅支持 CentOS 7）
-function Check_linux_system() {
-    if [[ -f /etc/redhat-release ]]; then
-        local linux_version=$(cat /etc/redhat-release)
-        if [[ ${linux_version} =~ "CentOS" ]] && [[ ${linux_version} =~ "7." ]]; then
-            echo -e "\033[32;32m 系统为 ${linux_version}，符合要求 \033[0m\n"
-        else
-            echo -e "\033[31;31m 该脚本仅支持 CentOS 7，当前系统: ${linux_version} \033[0m\n"
-            exit 1
-        fi
-    else
-        echo -e "\033[31;31m 无法识别系统版本，脚本退出 \033[0m\n"
-        exit 1
-    fi
-}
-
-# 2. 关闭 SELinux 和 firewalld
-function Disable_ip_se() {
-    systemctl stop firewalld && systemctl disable firewalld
-    if [[ $(getenforce) != "Disabled" ]]; then
-        setenforce 0
-        sed -i 's/^SELINUX=.*/SELINUX=disabled/' /etc/selinux/config
-    else
-        echo -e "\033[32;32m SELinux 已关闭 \033[0m\n"
-    fi
-}
-
-# 3. 配置 limits.conf 和 yum 源
-function Ulimit_yum() {
-    # 正确写入 limits.conf（格式：<domain> <type> <item> <value>）
-    cat >> /etc/security/limits.conf << EOF
-* soft nofile 65535
-* hard nofile 65535
-* soft nproc 65535
-* hard nproc 65535
+cat <<'EOF' | sudo tee /etc/security/limits.d/mysql.conf
+mysql soft nofile 65535
+mysql hard nofile 65535
+mysql soft nproc 65535
+mysql hard nproc 65535
 EOF
+```
 
-    # 立即生效（当前会话）
-    ulimit -SHn 65535
+### 防火墙说明
 
-    # 备份原有 repo，并下载阿里云 CentOS 7 源
-    mkdir -pv /etc/yum.repos.d/bak
-    mv /etc/yum.repos.d/*.repo /etc/yum.repos.d/bak/ 2>/dev/null || true
-    curl -o /etc/yum.repos.d/Centos-7.repo http://mirrors.aliyun.com/repo/Centos-7.repo
-    sed -i '/aliyuncs/d' /etc/yum.repos.d/Centos-7.repo
+云服务器优先用安全组控制访问。不要为了省事长期关闭所有防火墙。
 
-    # 清理缓存并更新
-    yum clean all
-    yum repolist all
+如果是实验环境且系统防火墙拦住了端口，可以临时放通：
 
-    # 安装工具（时间同步）
-    yum install -y ntpdate wget &> /dev/null
-    # 修正 ntpdate 参数（-u 使用非特权端口）
-    ntpdate -u ntp1.aliyun.com &> /dev/null || echo "时间同步失败，请检查网络"
-}
+Ubuntu：
 
-# 4. 安装 MySQL 5.7
-function Install_mysql() {
-    # 下载 bundle 包（若已存在则跳过）
-    if [[ ! -f mysql-5.7.36-1.el7.x86_64.rpm-bundle.tar ]]; then
-        wget https://cdn.mysql.com/archives/mysql-5.7/mysql-5.7.36-1.el7.x86_64.rpm-bundle.tar
-    fi
-    mkdir -p mysql
-    tar xf mysql-5.7.36-1.el7.x86_64.rpm-bundle.tar -C mysql --skip-old-files
+```bash
+sudo ufw allow from 10.0.0.11 to any port 3306 proto tcp
+sudo ufw status
+```
 
-    # 使用 localinstall 安装所有 rpm（--nodeps 可避免依赖问题，但更推荐 yum 自动解决）
-    yum localinstall mysql/*.rpm -y
+CentOS：
 
-    # 启动并设置开机自启
-    systemctl enable mysqld
-    systemctl start mysqld
+```bash
+sudo firewall-cmd --permanent --add-rich-rule="rule family=ipv4 source address=10.0.0.11/32 port protocol=tcp port=3306 accept"
+sudo firewall-cmd --reload
+```
 
-    # 等待 MySQL 完全启动（最多 30 秒）
-    local timeout=30
-    while ! systemctl is-active --quiet mysqld && [[ $timeout -gt 0 ]]; do
-        sleep 1
-        ((timeout--))
-    done
+## 安装 MySQL
 
-    if systemctl is-active --quiet mysqld; then
-        # 从日志中提取临时密码
-        local MYSQL_PWD=$(grep -i 'temporary password' /var/log/mysqld.log | tail -1 | awk '{print $NF}')
-        echo -e "\033[32;32m MySQL 安装完成并启动成功！\033[0m"
-        echo -e "\033[32;32m 初始 root 密码: ${MYSQL_PWD} \033[0m"
-        echo -e "\033[33;33m 请立即执行以下命令修改 root 密码（否则无法执行 SQL）：\033[0m"
-        echo "mysql -uroot -p'${MYSQL_PWD}' --connect-expired-password -e \"ALTER USER USER() IDENTIFIED BY '你的新密码';\""
-        echo -e "\033[33;33m 建议同时设置 validate_password_policy 等参数以满足安全要求。\033[0m"
-    else
-        echo -e "\033[31;31m MySQL 启动失败，请检查日志: /var/log/mysqld.log \033[0m"
-        exit 1
-    fi
-}
+### Ubuntu 22.04 推荐方式
 
-# 主流程
-Check_linux_system
-Disable_ip_se
-Ulimit_yum
-Install_mysql
+```bash
+sudo apt update
+sudo apt install -y mysql-server
+sudo systemctl enable --now mysql
+sudo systemctl status mysql --no-pager
+```
+
+登录：
+
+```bash
+sudo mysql
+```
+
+查看版本：
+
+```sql
+SELECT VERSION();
+```
+
+### CentOS 7 旧环境安装 MySQL 5.7
+
+如果必须使用旧 CentOS 7 和 MySQL 5.7，可以下载官方归档 RPM 包。这里统一使用 `wget`，避免混用下载工具。
+
+```bash
+sudo yum remove -y mariadb-libs
+wget https://cdn.mysql.com/archives/mysql-5.7/mysql-5.7.36-1.el7.x86_64.rpm-bundle.tar
+mkdir -p mysql-5.7-rpms
+tar xf mysql-5.7.36-1.el7.x86_64.rpm-bundle.tar -C mysql-5.7-rpms
+sudo yum localinstall -y mysql-5.7-rpms/*.rpm
+sudo systemctl enable --now mysqld
+```
+
+查看临时密码：
+
+```bash
+sudo grep -i 'temporary password' /var/log/mysqld.log
+```
+
+登录后先修改 root 密码：
+
+```bash
+mysql -uroot -p --connect-expired-password
+```
+
+```sql
+ALTER USER USER() IDENTIFIED BY 'Root_ChangeMe_123!';
+```
+
+## 一键安装脚本
+
+这是 Ubuntu 22.04 实验环境脚本。它只负责安装 MySQL 和基础工具，不自动修改主从配置，避免误把主库和从库配置混在一起。
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+if ! command -v apt >/dev/null 2>&1; then
+  echo "当前脚本只适用于 Ubuntu/Debian 系统"
+  exit 1
+fi
+
+sudo apt update
+sudo apt install -y mysql-server wget vim net-tools chrony
+sudo systemctl enable --now chrony
+sudo systemctl enable --now mysql
+
+mysql_version=$(mysql --version)
+echo "MySQL 安装完成：${mysql_version}"
+echo "登录方式：sudo mysql"
+```
+
+保存为 `install-mysql8-ubuntu.sh`：
+
+```bash
+chmod +x install-mysql8-ubuntu.sh
+./install-mysql8-ubuntu.sh
 ```
 
 ## 主库配置
 
-1.编辑 MySQL 配置文件：
+主库示例 IP：`10.0.0.10`。
+
+先确认主库私网 IP：
+
+```bash
+ip addr show
+```
+
+编辑配置文件：
+
+```bash
+sudo vim /etc/mysql/mysql.conf.d/mysqld.cnf
+```
+
+加入或调整：
 
 ```ini
-root@localhost(192.168.199.106)~>vim /etc/my.cnf
-# For advice on how to change settings please see
-# http://dev.mysql.com/doc/refman/5.7/en/server-configuration-defaults.html
 [mysqld]
-# 设置3306端口
-port=3306
-# server-id 服务器唯一标识
-server_id=1
-# log_bin 启动MySQL二进制日志，即数据同步语句，从数据库会一条一条的执行这些语句。
-log-bin=master-bin
-# 其中需要注意的是，binlog_do_db和binlog_ignore_db为互斥选项，一般只需要一个即可。
-# binlog每个日志文件大小
-max_binlog_size=100M
-# 设置二进制日志使用内存大小（事务）
-binlog_cache_size=1M
-# 设置使用的二进制日志格式（mixed,statement,row）
-binlog_format=mixed
-# 二进制日志过期清理时间。默认值为0，表示不自动清理。
-expire_logs_days=7
-# 设置mysql数据库的数据的存放目录
-datadir=/var/lib/mysql
-socket=/var/lib/mysql/mysql.sock
-# Disabling symbolic-links is recommended to prevent assorted security risks
-symbolic-links=0
-log-error=/var/log/mysqld.log
-pid-file=/var/run/mysqld/mysqld.pid
-#查询日志,对所有执行语句进行记录
-general_log=on
-general_log_file=/var/log/mysql_general.log
-#开启慢查询
-slow_query_log = on
-#慢查询中记录没有使用索引的query
-log-queries-not-using-indexes=on
-#返回较慢的日志mysql5.6版本以上，取消了参数log-slow-queries，更改为slow-query-log-file
-slow-query-log-file= /var/log/mysql_slowquery.log
-#慢查询时间,这里为2秒,超过2秒会被记录
-long_query_time=2
-# 跳过主从复制中遇到的所有错误或指定类型的错误，避免slave端复制中断。
-# 如：1062错误是指一些主键重复，1032错误是因为主从数据库数据不一致
-slave_skip_errors=1062
-#忽视大小写
-lower-case-table-names=1
-#不解析主机名,该项会引发本地无法连接到MySQL
-#skip-name-resolve
-# 允许最大连接数
-max_connections=1000
-# 允许连接失败的次数。这是为了防止有人从该主机试图攻击数据库系统
-max_connect_errors=10
-# 服务端使用的字符集默认为UTF8
-character-set-server=utf8
-# 创建新表时将使用的默认存储引擎
-default-storage-engine=INNODB
-# 字符集
+server-id=1
+bind-address=10.0.0.10
+
+log_bin=mysql-bin
+binlog_format=ROW
+binlog_expire_logs_seconds=604800
+
+gtid_mode=ON
+enforce_gtid_consistency=ON
+
 character-set-server=utf8mb4
-[mysql]
-# 设置mysql客户端默认字符集
-default-character-set=utf8mb4
-[client]
-# 设置mysql客户端连接服务端时默认使用的端口
-port=3306
-default-character-set=utf8mb4
+collation-server=utf8mb4_0900_ai_ci
+
+slow_query_log=ON
+long_query_time=2
 ```
 
-2.重启 MySQL：
+说明：
+
+- `server-id` 必须全局唯一。
+- `bind-address` 建议绑定私网 IP，不建议为了省事直接暴露到所有网卡。
+- `log_bin` 是主库作为复制源的关键。
+- `binlog_format=ROW` 更适合生产复制，避免 statement 模式下函数、时间、非确定性 SQL 带来的不一致。
+- `gtid_mode=ON` 和 `enforce_gtid_consistency=ON` 用于 GTID 复制。
+- 不建议默认配置 `slave_skip_errors` 或 `replica_skip_errors`，跳过错误可能掩盖数据不一致。
+
+重启 MySQL：
 
 ```bash
-systemctl restart mysqld
+sudo systemctl restart mysql
+sudo systemctl status mysql --no-pager
 ```
 
-3.修改root密码
-
-```bash
-egrep -ri password /var/log/mysqld.log egrep -ri password /var/log/mysqld.log
-
-mysql -uroot -
-
-set global validate_password_policy=0;
-set global validate_password_length=1;
-alter user user() identified by '123123'
-```
-
-4.创建测试数据
-
-```bash
-mysql> create database school;
-Query OK, 1 row affected (0.01 sec)
-mysql> create table school.user_info(id int,name varchar(32));
-Query OK, 0 rows affected (0.03 sec)
-mysql> INSERT INTO school.user_info-> VALUES-> (1, '1'),(2, '2'),(3, '3'),(4, '4'),(5, '5'),(6, '6'),(7, '7'),(8, '8'),(9, '9'),
-(10, '10');
-Query OK, 10 rows affected (0.05 sec)
-Records: 10  Duplicates: 0  Warnings: 0
-mysql> select count(1) from school.user_info;
-```
-
-5.进行master的全备
-
-```bash
-root@localhost(192.168.199.106)/root> mysqldump -uroot -p --routines --single_transaction --master-data=2 --all-databases > backup-all-databses.sql
-Enter password:
-root@localhost(192.168.199.106)/root> ll backup-all-databses.sql
-856K -rw-r--r-- 1 root root 856K Jul  6 14:27 backup-all-databses.sql
-#将全备拷贝到slave节点，待会需要导入到 slave 库
-root@localhost(192.168.199.106)/root> scp backup-all-databses.sql 192.168.199.107:/root/
-root@192.168.199.107's password:
-参数说明：--routines 导出存储过程和函数--single_transaction 导出开始时设置事务隔离状态，并使用一致性快照事务，然后unlock tables;
-而 lock-tables是锁住一张表不能写操作，直到dump完毕。--master-data=2 默认等于1，将dump起始（change master to） binlog点和pos值写到结果中，等于
-2是将change master to写到结果中并注释
-```
-
-6.创建复制账号：
+验证主库配置：
 
 ```sql
-CREATE USER 'repl'@'192.168.56.%' IDENTIFIED BY 'repl_password';
-GRANT REPLICATION SLAVE ON *.* TO 'repl'@'192.168.56.%';
-FLUSH PRIVILEGES;
+SHOW VARIABLES LIKE 'server_id';
+SHOW VARIABLES LIKE 'log_bin';
+SHOW VARIABLES LIKE 'binlog_format';
+SHOW VARIABLES LIKE 'gtid_mode';
 ```
 
-7.继续在主库中添加数据，该数据是全备后新增的数据，模拟生产库实时新增数据
-
-```bash
-mysql> INSERT INTO school.user_info-> VALUES-> (11, '11'),(12, '12'),(13, '13'),(14, '14'),(15, '15'),(16, '16'),(17, '17'),(18, 
-'18'),(19, '19'),(20, '20');
-```
-
-8.查看主库状态：
+查看 binlog 状态：
 
 ```sql
+SHOW BINARY LOGS;
 SHOW MASTER STATUS;
 ```
 
-记录：
+> MySQL 8.0.26 以后部分文档开始使用 source/replica 术语，但 `SHOW MASTER STATUS` 在很多 8.0 环境仍然可用。生产环境以当前版本实际支持的语句为准。
 
-- `File`
-- `Position`
+## 创建复制账号
 
-例如：
+在主库执行：
 
-```text
-mysql-bin.000001
-154
+```sql
+CREATE USER 'repl'@'10.0.0.11' IDENTIFIED BY 'Repl_Strong_123!';
+GRANT REPLICATION SLAVE ON *.* TO 'repl'@'10.0.0.11';
+FLUSH PRIVILEGES;
 ```
+
+如果后面要接多台从库，可以放宽到整个内网网段：
+
+```sql
+CREATE USER 'repl'@'10.0.0.%' IDENTIFIED BY 'Repl_Strong_123!';
+GRANT REPLICATION SLAVE ON *.* TO 'repl'@'10.0.0.%';
+FLUSH PRIVILEGES;
+```
+
+生产更推荐精确到从库私网 IP。复制账号只给复制权限，不要给 `ALL PRIVILEGES`。
+
+测试从库能否连接主库：
+
+```bash
+mysql -h10.0.0.10 -P3306 -urepl -p
+```
+
+如果连接失败，优先检查：
+
+- 主库安全组是否允许从库私网 IP 访问 `3306`。
+- 主库 `bind-address` 是否监听外部地址。
+- 复制账号 host 是否匹配。
+- 密码是否正确。
 
 ## 从库配置
 
-1.编辑配置：
+从库示例 IP：`10.0.0.11`。
+
+先确认从库私网 IP：
+
+```bash
+ip addr show
+```
+
+编辑配置文件：
+
+```bash
+sudo vim /etc/mysql/mysql.conf.d/mysqld.cnf
+```
+
+加入或调整：
 
 ```ini
-root@localhost(192.168.199.107)/root> vim /etc/my.cnf
-# For advice on how to change settings please see
-# http://dev.mysql.com/doc/refman/5.7/en/server-configuration-defaults.html
 [mysqld]
-#
-datadir=/var/lib/mysql
-socket=/var/lib/mysql/mysql.sock
 server-id=2
-relay-log=slave-relay-bin
-# Disabling symbolic-links is recommended to prevent assorted security risks
-symbolic-links=0
-log-error=/var/log/mysqld.log
-pid-file=/var/run/mysqld/mysqld.pid
-# 设置二进制日志使用内存大小（事务）
-binlog_cache_size=1M
-# 设置使用的二进制日志格式（mixed,statement,row）
-binlog_format=mixed
-# 二进制日志过期清理时间。默认值为0，表示不自动清理。
-expire_logs_days=7
-# 跳过主从复制中遇到的所有错误或指定类型的错误，避免slave端复制中断。
-# 如：1062错误是指一些主键重复，1032错误是因为主从数据库数据不一致
-slave_skip_errors=1062
-# relay_log配置中继日志
-relay_log=mall-mysql-relay-bin
-# log_slave_updates表示slave将复制事件写进自己的二进制日志
-log_slave_updates=1
-# slave设置为只读（具有super权限的用户除外）
-read_only=1
+bind-address=10.0.0.11
+
+relay_log=mysql-relay-bin
+read_only=ON
+super_read_only=ON
+
+gtid_mode=ON
+enforce_gtid_consistency=ON
+
+log_replica_updates=ON
+binlog_format=ROW
+
+character-set-server=utf8mb4
+collation-server=utf8mb4_0900_ai_ci
 ```
 
-2.重启：
+说明：
+
+- `server-id` 不能和主库重复。
+- `read_only=ON` 防止普通账号误写从库。
+- `super_read_only=ON` 可以进一步限制具备高级权限的账号误写。
+- `log_replica_updates=ON` 表示从库重放的事务也写入自己的 binlog，后续做级联复制或故障切换更方便。
+
+重启：
 
 ```bash
-systemctl restart mysqld
+sudo systemctl restart mysql
+sudo systemctl status mysql --no-pager
 ```
 
-3.修改 root 密码
-
-```bash
-root@localhost(192.168.199.107)/root> systemctl restart mysqld
-root@localhost(192.168.199.107)/root> egrep -ri password /var/log/mysqld.log
-2023-07-06T06:22:22.285976Z 1 [Note] A temporary password is generated for root@localhost: 
-dP4qob(K(piB
-root@localhost(192.168.199.107)/root> mysql -uroot -p
-Enter password:
-mysql> set global validate_password_policy=0;
-Query OK, 0 rows affected (0.00 sec)
-mysql> set global validate_password_length=1;
-Query OK, 0 rows affected (0.00 sec)
-mysql> alter user user() identified by '123123';
-Query OK, 0 rows affected (0.01 sec)
-```
-
-4.导入master节点的全备
-
-```bash
-root@localhost(192.168.199.107)/root> mysql -uroot -p123123 < backup-all-databses.sql
-mysql: [Warning] Using a password on the command line interface can be insecure.
-```
-
-5.查看全备导入后的数据,通过以上查询得知，数据量和目前master节点的数据量是不匹配的。
-
-6.通过全备文件查看  binlog 日志和  pos 值，这两可以明确一个时间点,接下来，在  slave 节点开启同步master库时，就从这个时间点开始
-
-7.备库设置日志点同步，并启动
-
-8.配置主库信息：
+验证：
 
 ```sql
-root@localhost(192.168.199.107)/root> mysql -uroot -p123123
-mysql> start slave;
-Query OK, 0 rows affected (0.00 sec)
-mysql> change master to 
-master_host='192.168.199.106',master_user='repl',master_password='repl',master_log_file='m
-aster-bin.000002',master_log_pos=1142;
-Query OK, 0 rows affected, 2 warnings (0.03 sec)
-mysql> show slave status\G;
-*************************** 1. row ***************************
-Slave_IO_State: Waiting for master to send event
-Master_Host: 192.168.199.106
-Master_User: repl
-Master_Port: 3306
-Connect_Retry: 60
-Master_Log_File: master-bin.000002
-Read_Master_Log_Pos: 198
+SHOW VARIABLES LIKE 'server_id';
+SHOW VARIABLES LIKE 'read_only';
+SHOW VARIABLES LIKE 'super_read_only';
+SHOW VARIABLES LIKE 'gtid_mode';
 ```
 
-MySQL 8.0.23 以后也可以使用 `CHANGE REPLICATION SOURCE TO`，语义更清晰。
+### MySQL 5.7 配置兼容
 
-IO和SQL线程均为：Yes 状态，说明主从配置成功。
+如果安装的是 MySQL 5.7，不要原样复制所有 8.0 参数，需要做这些替换：
 
-再次查看数据量是否与主库同步
+| MySQL 8.0 参数 | MySQL 5.7 写法 | 说明 |
+| --- | --- | --- |
+| `binlog_expire_logs_seconds=604800` | `expire_logs_days=7` | binlog 保留时间 |
+| `log_replica_updates=ON` | `log_slave_updates=ON` | 从库重放事务写入自己的 binlog |
+| `collation-server=utf8mb4_0900_ai_ci` | `collation-server=utf8mb4_unicode_ci` | 5.7 不支持 8.0 的 `0900` 排序规则 |
 
-同步测试 通过在master 上删除10条数据进行测试，查看 slave 是否同步
+MySQL 5.7 的启动、停止、状态命令也使用旧术语，例如 `START SLAVE`、`SHOW SLAVE STATUS\G`。如果只是新环境练习，优先使用 MySQL 8.0，少踩一些旧版本兼容坑。
 
-slave查看数据量是否同
+## 初始化数据
 
-确认无误，master 和 slave 完全同步。
+### 场景一：主库是空库
 
-启动复制：
+如果两台机器都是刚安装好的空库，可以直接配置 GTID 复制，不需要先导入备份。
+
+跳到“配置复制源”即可。
+
+### 场景二：主库已有数据
+
+如果主库已经有业务数据，必须先把主库某个一致性时间点的数据导入从库，再从这个时间点之后继续追 binlog。
+
+在主库执行备份：
+
+```bash
+sudo mysqldump \
+  --all-databases \
+  --single-transaction \
+  --routines \
+  --triggers \
+  --events \
+  --set-gtid-purged=ON \
+  --source-data=2 \
+  > /tmp/mysql-full.sql
+```
+
+MySQL 8.0.25 及更早版本，使用：
+
+```bash
+sudo mysqldump \
+  --all-databases \
+  --single-transaction \
+  --routines \
+  --triggers \
+  --events \
+  --set-gtid-purged=ON \
+  --master-data=2 \
+  > /tmp/mysql-full.sql
+```
+
+参数说明：
+
+- `--single-transaction`：对 InnoDB 表做一致性快照，减少锁表影响。
+- `--routines`：导出存储过程和函数。
+- `--triggers`：导出触发器。
+- `--events`：导出事件。
+- `--set-gtid-purged=ON`：把主库已执行 GTID 写入备份文件，用于从库追 GTID。
+- `--source-data=2` / `--master-data=2`：把备份时间点的 binlog 位点写入备份文件注释中，便于排查和回退到位点复制。
+
+拷贝到从库：
+
+```bash
+scp /tmp/mysql-full.sql root@10.0.0.11:/tmp/
+```
+
+在从库导入：
+
+```bash
+sudo mysql -e "SET GLOBAL super_read_only=OFF; SET GLOBAL read_only=OFF;"
+sudo mysql < /tmp/mysql-full.sql
+sudo mysql -e "SET GLOBAL read_only=ON; SET GLOBAL super_read_only=ON;"
+```
+
+导入前确认从库是干净实例。如果从库已有测试数据，建议先重建从库或清空后再导入，避免 `GTID_PURGED` 和已有数据冲突。这里临时关闭只读，是为了允许初始化数据导入；导入完成后要立刻恢复只读。
+
+## 配置复制源
+
+在从库执行。
+
+MySQL 8.0.23+：
 
 ```sql
+STOP REPLICA;
+
+CHANGE REPLICATION SOURCE TO
+  SOURCE_HOST='10.0.0.10',
+  SOURCE_PORT=3306,
+  SOURCE_USER='repl',
+  SOURCE_PASSWORD='Repl_Strong_123!',
+  SOURCE_AUTO_POSITION=1,
+  GET_SOURCE_PUBLIC_KEY=1;
+
+START REPLICA;
+```
+
+说明：
+
+- `SOURCE_AUTO_POSITION=1` 表示使用 GTID 自动定位，不再手动填写 binlog 文件和 position。
+- `GET_SOURCE_PUBLIC_KEY=1` 用于 MySQL 8 默认 `caching_sha2_password` 在非 SSL 连接下交换公钥。生产环境更推荐配置 TLS 复制。
+
+MySQL 5.7 或旧版本：
+
+```sql
+STOP SLAVE;
+
+CHANGE MASTER TO
+  MASTER_HOST='10.0.0.10',
+  MASTER_PORT=3306,
+  MASTER_USER='repl',
+  MASTER_PASSWORD='Repl_Strong_123!',
+  MASTER_AUTO_POSITION=1;
+
 START SLAVE;
 ```
 
-查看状态：
+## 查看复制状态
+
+MySQL 8.0：
+
+```sql
+SHOW REPLICA STATUS\G
+```
+
+MySQL 5.7：
 
 ```sql
 SHOW SLAVE STATUS\G
@@ -580,124 +539,328 @@ SHOW SLAVE STATUS\G
 重点看：
 
 ```text
+Replica_IO_Running: Yes
+Replica_SQL_Running: Yes
+Seconds_Behind_Source: 0
+Last_IO_Error:
+Last_SQL_Error:
+```
+
+旧版本字段名可能是：
+
+```text
 Slave_IO_Running: Yes
 Slave_SQL_Running: Yes
 Seconds_Behind_Master: 0
+Last_IO_Error:
+Last_SQL_Error:
 ```
 
-两个线程都为 `Yes`，说明复制正常。
+两个线程都为 `Yes`，并且错误字段为空，说明复制链路正常。
 
 ## 验证复制
 
-主库执行：
+在主库执行：
 
 ```sql
 CREATE DATABASE repl_test;
 USE repl_test;
+
 CREATE TABLE t_user (
-  id INT PRIMARY KEY AUTO_INCREMENT,
-  name VARCHAR(50)
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(50) NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
-INSERT INTO t_user (name) VALUES ('justin');
+
+INSERT INTO t_user(name) VALUES ('source-write-001');
 ```
 
-从库查询：
+在从库查询：
 
 ```sql
 SELECT * FROM repl_test.t_user;
 ```
 
-如果能看到数据，说明复制链路正常。
+如果能看到 `source-write-001`，说明复制成功。
+
+继续测试更新和删除：
+
+```sql
+UPDATE repl_test.t_user SET name = 'source-update-001' WHERE id = 1;
+DELETE FROM repl_test.t_user WHERE id = 1;
+```
+
+从库再次查询确认变化是否同步。
+
+## 常用运维命令
+
+查看主库 binlog：
+
+```sql
+SHOW BINARY LOGS;
+SHOW MASTER STATUS;
+```
+
+查看从库复制状态：
+
+```sql
+SHOW REPLICA STATUS\G
+```
+
+停止复制：
+
+```sql
+STOP REPLICA;
+```
+
+启动复制：
+
+```sql
+START REPLICA;
+```
+
+重置复制配置，谨慎执行：
+
+```sql
+STOP REPLICA;
+RESET REPLICA ALL;
+```
+
+查看 GTID：
+
+```sql
+SHOW VARIABLES LIKE 'gtid_mode';
+SHOW GLOBAL VARIABLES LIKE 'gtid_executed';
+SHOW GLOBAL VARIABLES LIKE 'gtid_purged';
+```
+
+查看复制线程：
+
+```sql
+SHOW PROCESSLIST;
+```
 
 ## 主从延迟
 
 查看：
 
 ```sql
-SHOW SLAVE STATUS\G
+SHOW REPLICA STATUS\G
 ```
 
-关注：
+重点看：
+
+```text
+Seconds_Behind_Source
+```
+
+旧版本字段：
 
 ```text
 Seconds_Behind_Master
 ```
 
-主从延迟常见原因：
+常见原因：
 
 - 主库写入压力大。
+- 大事务，例如一次删除或更新几百万行。
 - 从库 SQL 线程重放慢。
-- 大事务。
-- 从库硬件性能差。
-- 从库执行复杂查询影响复制。
-- 网络抖动。
+- 从库硬件性能弱于主库。
+- 从库上跑了复杂查询，抢占 IO 或 CPU。
+- 网络抖动或跨地域复制。
 
-降低延迟：
+优化方向：
 
-- 避免大事务。
-- 从库避免复杂慢查询。
-- 合理配置并行复制。
-- 主从机器性能不要差距过大。
-- 对强一致读走主库。
+- 避免大事务，批量更新按主键分页分批执行。
+- 从库避免跑超大报表 SQL。
+- 主从机器规格不要差距过大。
+- 开启并行复制，结合业务测试效果。
+- 强一致读走主库，不能无脑读从库。
 
-## 常见故障
+MySQL 8.0 可参考配置：
+
+```ini
+[mysqld]
+replica_parallel_workers=4
+replica_parallel_type=LOGICAL_CLOCK
+```
+
+MySQL 5.7 对应旧参数：
+
+```ini
+[mysqld]
+slave_parallel_workers=4
+slave_parallel_type=LOGICAL_CLOCK
+```
+
+## 常见故障排查
 
 ### IO 线程不是 Yes
 
-可能原因：
+表现：
 
-- 主库 IP 或端口不通。
+```text
+Replica_IO_Running: No
+```
+
+常见原因：
+
+- 主库 IP、端口写错。
+- 主库安全组没有放通 `3306`。
+- 主库 `bind-address` 只监听 `127.0.0.1`。
+- 复制账号 host 不匹配。
 - 复制账号密码错误。
-- 主库防火墙或安全组未开放。
-- 主库 binlog 未开启。
+- 主库没有开启 binlog。
 
 排查：
 
 ```bash
-ping 192.168.56.10
-telnet 192.168.56.10 3306
+ping 10.0.0.10
+nc -vz 10.0.0.10 3306
+mysql -h10.0.0.10 -P3306 -urepl -p
 ```
 
-查看从库错误：
+查看错误：
 
 ```sql
-SHOW SLAVE STATUS\G
+SHOW REPLICA STATUS\G
 ```
 
-关注 `Last_IO_Error`。
+关注：
+
+```text
+Last_IO_Error
+```
 
 ### SQL 线程不是 Yes
 
-可能原因：
+表现：
 
-- 从库重放 SQL 报错。
-- 主从数据不一致。
-- 从库被手工写入过数据。
-
-查看：
-
-```sql
-SHOW SLAVE STATUS\G
+```text
+Replica_SQL_Running: No
 ```
 
-关注 `Last_SQL_Error`。
+常见原因：
 
-不要轻易跳过错误，应该先确认数据一致性和错误原因。
+- 从库被手工写入过，和主库数据不一致。
+- 主库执行了从库无法重放的 SQL。
+- 表结构不一致。
+- 主键冲突或数据缺失。
 
-## 生产注意事项
+排查：
 
-- 从库设置 `read_only=ON`，避免误写。
-- 复制账号只授予复制权限。
-- 定期监控主从延迟。
-- 备份和恢复流程要定期演练。
-- 应用读写分离要考虑延迟。
+```sql
+SHOW REPLICA STATUS\G
+```
+
+关注：
+
+```text
+Last_SQL_Error
+```
+
+不要上来就配置跳过错误。跳过错误可能让复制恢复为 `Yes`，但数据已经不一致。正确流程是先判断错误类型，再决定修数据、重建从库，或在明确风险后跳过单个事务。
+
+### 认证失败
+
+常见错误：
+
+```text
+Access denied for user 'repl'
+Authentication plugin 'caching_sha2_password' reported error
+```
+
+处理：
+
+```sql
+SHOW GRANTS FOR 'repl'@'10.0.0.%';
+```
+
+MySQL 8 如果没有配置 SSL，可以在 `CHANGE REPLICATION SOURCE TO` 中加：
+
+```sql
+GET_SOURCE_PUBLIC_KEY=1
+```
+
+或者创建复制账号时使用兼容认证插件：
+
+```sql
+CREATE USER 'repl'@'10.0.0.%'
+  IDENTIFIED WITH mysql_native_password BY 'Repl_Strong_123!';
+GRANT REPLICATION SLAVE ON *.* TO 'repl'@'10.0.0.%';
+```
+
+生产环境更推荐配置 TLS 复制，而不是长期明文传输密码和复制流量。
+
+### 主库 binlog 被清理
+
+如果主库 binlog 已经清理，而从库还没追到对应 GTID，复制会启动失败。
+
+表现可能类似：
+
+```text
+The source has purged binary logs containing GTIDs that the replica requires
+```
+
+处理方式通常是重新从主库做全量备份，再重建从库。
+
+## 重建从库流程
+
+当从库数据已经不可信、复制错误难以修复、binlog 被清理，或者你练习时操作乱了，最稳的方式是重建从库。
+
+流程：
+
+```text
+1. 从库停止复制
+2. 清理或重建从库实例
+3. 主库重新导出一致性备份
+4. 拷贝备份到从库
+5. 从库导入备份
+6. 重新配置 GTID 复制源
+7. 启动复制并检查状态
+8. 做增删改验证
+```
+
+从库停止并清理复制配置：
+
+```sql
+STOP REPLICA;
+RESET REPLICA ALL;
+```
+
+如果只是练习环境，最省心的做法是直接重装从库 MySQL 或重新创建云服务器。生产环境不要随便删库，需要先确认备份、业务影响和回滚方案。
+
+## 上线前检查清单
+
+- 主从都使用私网 IP 通信。
+- 安全组只允许必要来源访问 `22` 和 `3306`。
+- 主库 `log_bin`、`gtid_mode`、`enforce_gtid_consistency` 已开启。
+- 主库和从库 `server-id` 不重复。
+- 从库开启 `read_only` 和 `super_read_only`。
+- 复制账号只授予 `REPLICATION SLAVE`。
+- `SHOW REPLICA STATUS\G` 中 IO 和 SQL 线程都是 `Yes`。
+- `Last_IO_Error` 和 `Last_SQL_Error` 为空。
+- 已在主库做插入、更新、删除测试，并在从库验证同步。
+- 已验证备份文件能在测试库恢复。
+- 已确认云硬盘、快照、弹性公网 IP 的计费规则。
+
+## 生产建议
+
+- 主从复制走私网，不要把 MySQL 暴露到公网。
+- 主库必须开启 binlog，并合理设置保留时间。
+- 从库开启 `read_only` 和 `super_read_only`，避免误写。
+- 复制账号只授予复制权限，不要给 `ALL PRIVILEGES`。
+- 默认使用 `binlog_format=ROW`。
+- 不要长期配置 `slave_skip_errors` / `replica_skip_errors`。
+- 定期监控复制线程、复制延迟、磁盘空间、binlog 保留时间。
+- 备份和恢复要定期演练。
 - 主从不是备份的替代品，误删数据会同步到从库。
+- 故障切换前要确认从库是否追平、是否有数据丢失、应用连接如何切换。
+- 云上按量练习结束后及时销毁 CVM、云硬盘、快照和弹性公网 IP，避免继续计费。
 
 ## 主从和备份的关系
 
 主从复制不能替代备份。
-
-原因：
 
 ```text
 主库误删数据
@@ -706,4 +869,15 @@ SHOW SLAVE STATUS\G
   -> 从库也删除
 ```
 
-所以仍然需要定期备份，并保留 binlog，用于恢复到指定时间点。
+所以仍然需要：
+
+- 定期全量备份。
+- 保留足够时间的 binlog。
+- 定期恢复演练。
+- 关键操作前做备份或快照。
+
+## 参考资料
+
+- [MySQL 8.0 CHANGE REPLICATION SOURCE TO](https://dev.mysql.com/doc/refman/8.0/en/change-replication-source-to.html)
+- [MySQL 8.0 使用 GTID 搭建复制](https://dev.mysql.com/doc/refman/8.0/en/replication-gtids-howto.html)
+- [mysqldump 官方参数说明](https://dev.mysql.com/doc/refman/8.0/en/mysqldump.html)
