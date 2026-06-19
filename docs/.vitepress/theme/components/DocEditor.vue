@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { withBase } from 'vitepress'
+import 'vditor/dist/index.css'
 
 type WriterMode = 'create' | 'edit'
 
@@ -27,6 +28,21 @@ type DraftPayload = {
   importedFileName: string
 }
 
+type VditorInstance = {
+  getValue(): string
+  setValue(markdown: string, clearStack?: boolean): void
+  insertValue(markdown: string, render?: boolean): void
+  focus(): void
+  blur(): void
+  destroy(): void
+  setTheme(theme: 'classic' | 'dark', contentTheme?: string, codeTheme?: string, contentThemePath?: string): void
+  tip?: {
+    show(text: string, timeout?: number): void
+  }
+}
+
+type VditorConstructor = new (element: HTMLElement, options: Record<string, any>) => VditorInstance
+
 const categories = [
   { label: 'Linux', prefix: 'docs/src/docs/linux/linux/' },
   { label: 'MySQL', prefix: 'docs/src/docs/db/mysql/' },
@@ -38,18 +54,19 @@ const categories = [
   { label: 'Java', prefix: 'docs/src/docs/java/' }
 ]
 
-const draftKey = 'justin-docs-online-writer-draft-v3'
+const draftKey = 'justin-docs-online-writer-draft-v4'
 const maxImportBytes = 3 * 1024 * 1024
 const maxImageBytes = 4 * 1024 * 1024
 
 const user = ref<UserInfo>({ authenticated: false })
 const mode = ref<WriterMode>('create')
 const sideCollapsed = ref(true)
-const previewOpen = ref(true)
-const previewFirst = ref(false)
 const markdownInput = ref<HTMLInputElement | null>(null)
 const imageInput = ref<HTMLInputElement | null>(null)
-const editorRef = ref<HTMLTextAreaElement | null>(null)
+const editorHost = ref<HTMLDivElement | null>(null)
+const editor = ref<VditorInstance | null>(null)
+const editorReady = ref(false)
+const editorLoading = ref(false)
 const apiReady = ref(true)
 const loading = ref(false)
 const saving = ref(false)
@@ -75,6 +92,7 @@ const draftReady = ref(false)
 
 let redirectTimer: number | undefined
 let draftTimer: number | undefined
+let themeObserver: MutationObserver | undefined
 
 const isEditingCurrentDoc = computed(() => mode.value === 'edit' && hasSourcePath.value)
 const showCreateTools = computed(() => !isEditingCurrentDoc.value)
@@ -89,13 +107,14 @@ const entryLabel = computed(() => {
 const entryDescription = computed(() => {
   if (isEditingCurrentDoc.value) return '从文档页进入，只修改当前这篇 Markdown。'
   if (importedFileName.value) return '已读取本地 Markdown，确认目录和文件名后提交。'
-  return '从首页进入，用来创建一篇新的技术文档。'
+  return '创建新技术笔记，选择目录和文件名后提交到仓库。'
 })
 
 const statusText = computed(() => {
   if (saving.value) return '提交中'
   if (uploadingImage.value) return '上传图片'
   if (loading.value) return '读取中'
+  if (editorLoading.value) return '编辑器加载中'
   if (saveCompleted.value) return '已提交'
   if (hasUnsavedChanges.value) return '有未提交修改'
   return '编辑中'
@@ -135,7 +154,6 @@ const docViewUrl = computed(() => repoPathToSiteUrl(path.value))
 
 const editorStats = computed(() => {
   const text = content.value || ''
-  const trimmed = text.trim()
   const plain = text
     .replace(/```[\s\S]*?```/g, ' ')
     .replace(/[#>*_\-[\]()`|]/g, ' ')
@@ -148,8 +166,6 @@ const editorStats = computed(() => {
     headings: (text.match(/^#{1,6}\s+/gm) || []).length
   }
 })
-
-const previewHtml = computed(() => renderMarkdown(content.value))
 
 function normalizeSlug(value: string) {
   return String(value || 'new-note')
@@ -174,10 +190,6 @@ function filenameWithoutMarkdownExt(fileName: string) {
 
 function extractFrontmatter(markdown: string) {
   return /^---\s*\n([\s\S]*?)\n---/.exec(markdown)
-}
-
-function stripFrontmatter(markdown: string) {
-  return markdown.replace(/^---\s*\n[\s\S]*?\n---\s*/, '')
 }
 
 function extractFrontmatterTitle(markdown: string) {
@@ -255,231 +267,10 @@ function syncTitleFromContent(markdown: string) {
   }
 }
 
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-}
-
-function escapeAttr(value: string) {
-  return escapeHtml(value).replace(/`/g, '&#96;')
-}
-
-function renderInlineMarkdown(value: string) {
-  const placeholders: string[] = []
-  const store = (html: string) => {
-    const key = `JUSTIN_MD_${placeholders.length}_END`
-
-    placeholders.push(html)
-    return key
-  }
-
-  let source = value
-
-  source = source.replace(/`([^`]+)`/g, (_match, code) => {
-    return store(`<code>${escapeHtml(code)}</code>`)
-  })
-  source = source.replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (_match, alt, src) => {
-    return store(`<img src="${escapeAttr(src)}" alt="${escapeAttr(alt)}" />`)
-  })
-  source = source.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+|\/[^)\s]+|#[^)\s]+)\)/g, (_match, label, url) => {
-    const external = /^https?:\/\//.test(url)
-    const target = external ? ' target="_blank" rel="noreferrer"' : ''
-
-    return store(`<a href="${escapeAttr(url)}"${target}>${escapeHtml(label)}</a>`)
-  })
-
-  let html = escapeHtml(source)
-
-  html = html.replace(/~~([^~]+)~~/g, '<del>$1</del>')
-  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-  html = html.replace(/__([^_]+)__/g, '<strong>$1</strong>')
-  html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>')
-  html = html.replace(/_([^_]+)_/g, '<em>$1</em>')
-
-  placeholders.forEach((placeholder, index) => {
-    html = html.replace(new RegExp(`JUSTIN_MD_${index}_END`, 'g'), placeholder)
-  })
-
-  return html
-}
-
-function isTableSeparator(line: string) {
-  return /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(line)
-}
-
-function splitTableRow(line: string) {
-  return line
-    .trim()
-    .replace(/^\|/, '')
-    .replace(/\|$/, '')
-    .split('|')
-    .map((cell) => cell.trim())
-}
-
-function renderTable(lines: string[]) {
-  const header = splitTableRow(lines[0])
-  const body = lines.slice(2).map(splitTableRow)
-
-  return `<table><thead><tr>${header
-    .map((cell) => `<th>${renderInlineMarkdown(cell)}</th>`)
-    .join('')}</tr></thead><tbody>${body
-    .map((row) => `<tr>${row.map((cell) => `<td>${renderInlineMarkdown(cell)}</td>`).join('')}</tr>`)
-    .join('')}</tbody></table>`
-}
-
-function renderMarkdown(markdown: string) {
-  const lines = stripFrontmatter(markdown).replace(/\r\n/g, '\n').split('\n')
-  const html: string[] = []
-  let index = 0
-
-  while (index < lines.length) {
-    const line = lines[index]
-    const trimmed = line.trim()
-
-    if (!trimmed) {
-      index += 1
-      continue
-    }
-
-    if (/^```/.test(trimmed)) {
-      const language = trimmed.replace(/^```/, '').trim().split(/\s+/)[0] || 'text'
-      const codeLines: string[] = []
-
-      index += 1
-      while (index < lines.length && !/^```/.test(lines[index].trim())) {
-        codeLines.push(lines[index])
-        index += 1
-      }
-      index += index < lines.length ? 1 : 0
-
-      html.push(`<div class="doc-editor-preview-code"><span>${escapeHtml(language)}</span><pre><code>${escapeHtml(codeLines.join('\n'))}</code></pre></div>`)
-      continue
-    }
-
-    const heading = /^(#{1,6})\s+(.+)$/.exec(trimmed)
-    if (heading) {
-      const level = heading[1].length
-      const text = heading[2].replace(/\s+#+$/, '')
-
-      html.push(`<h${level}>${renderInlineMarkdown(text)}</h${level}>`)
-      index += 1
-      continue
-    }
-
-    if (/^(---|\*\*\*|___)$/.test(trimmed)) {
-      html.push('<hr />')
-      index += 1
-      continue
-    }
-
-    if (index + 1 < lines.length && line.includes('|') && isTableSeparator(lines[index + 1])) {
-      const tableLines = [line, lines[index + 1]]
-
-      index += 2
-      while (index < lines.length && lines[index].includes('|') && lines[index].trim()) {
-        tableLines.push(lines[index])
-        index += 1
-      }
-
-      html.push(renderTable(tableLines))
-      continue
-    }
-
-    if (/^>\s?/.test(trimmed)) {
-      const quoteLines: string[] = []
-
-      while (index < lines.length && /^>\s?/.test(lines[index].trim())) {
-        quoteLines.push(lines[index].trim().replace(/^>\s?/, ''))
-        index += 1
-      }
-
-      html.push(`<blockquote><p>${renderInlineMarkdown(quoteLines.join(' '))}</p></blockquote>`)
-      continue
-    }
-
-    if (/^[-*+]\s+\[[ xX]\]\s+/.test(trimmed)) {
-      const items: string[] = []
-
-      while (index < lines.length && /^[-*+]\s+\[[ xX]\]\s+/.test(lines[index].trim())) {
-        const item = lines[index].trim()
-        const checked = /^[-*+]\s+\[[xX]\]\s+/.test(item)
-        const text = item.replace(/^[-*+]\s+\[[ xX]\]\s+/, '')
-
-        items.push(`<li class="task-list-item"><input type="checkbox" disabled${checked ? ' checked' : ''} /> ${renderInlineMarkdown(text)}</li>`)
-        index += 1
-      }
-
-      html.push(`<ul class="task-list">${items.join('')}</ul>`)
-      continue
-    }
-
-    if (/^[-*+]\s+/.test(trimmed)) {
-      const items: string[] = []
-
-      while (index < lines.length && /^[-*+]\s+/.test(lines[index].trim())) {
-        items.push(lines[index].trim().replace(/^[-*+]\s+/, ''))
-        index += 1
-      }
-
-      html.push(`<ul>${items.map((item) => `<li>${renderInlineMarkdown(item)}</li>`).join('')}</ul>`)
-      continue
-    }
-
-    if (/^\d+\.\s+/.test(trimmed)) {
-      const items: string[] = []
-
-      while (index < lines.length && /^\d+\.\s+/.test(lines[index].trim())) {
-        items.push(lines[index].trim().replace(/^\d+\.\s+/, ''))
-        index += 1
-      }
-
-      html.push(`<ol>${items.map((item) => `<li>${renderInlineMarkdown(item)}</li>`).join('')}</ol>`)
-      continue
-    }
-
-    const paragraph: string[] = []
-
-    while (
-      index < lines.length &&
-      lines[index].trim() &&
-      !/^```/.test(lines[index].trim()) &&
-      !/^(#{1,6})\s+/.test(lines[index].trim()) &&
-      !/^(---|\*\*\*|___)$/.test(lines[index].trim()) &&
-      !/^>\s?/.test(lines[index].trim()) &&
-      !/^[-*+]\s+\[[ xX]\]\s+/.test(lines[index].trim()) &&
-      !/^[-*+]\s+/.test(lines[index].trim()) &&
-      !/^\d+\.\s+/.test(lines[index].trim())
-    ) {
-      paragraph.push(lines[index].trim())
-      index += 1
-    }
-
-    html.push(`<p>${renderInlineMarkdown(paragraph.join(' '))}</p>`)
-  }
-
-  return html.join('\n') || '<p class="doc-editor-preview-empty">开始写作后，这里会显示预览。</p>'
-}
-
-function setNotice(message: string) {
-  notice.value = message
-  error.value = ''
-}
-
-function setError(message: string) {
-  error.value = message
-  notice.value = ''
-}
-
-function buildTemplate(force = false) {
-  if (!force && content.value.trim()) return
-
+function buildTemplate() {
   const docTitle = title.value.trim() || '新文档'
 
-  content.value = `# ${docTitle}
+  return `# ${docTitle}
 
 ## 背景
 
@@ -532,351 +323,89 @@ function repoPathToSiteUrl(repoPath: string) {
   return withBase(routePath.startsWith('/') ? routePath : `/${routePath}`)
 }
 
+function setNotice(message: string) {
+  notice.value = message
+  error.value = ''
+}
+
+function setError(message: string) {
+  error.value = message
+  notice.value = ''
+}
+
 function updateCreatePath() {
   path.value = `${categoryPrefix.value}${normalizeSlug(slug.value)}.md`
   sha.value = ''
 }
 
-function getSelectionRange() {
-  const editor = editorRef.value
+function isDarkTheme() {
+  return typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
+}
 
-  return {
-    start: editor?.selectionStart ?? content.value.length,
-    end: editor?.selectionEnd ?? content.value.length
+function applyEditorTheme() {
+  if (!editor.value) return
+
+  const dark = isDarkTheme()
+
+  editor.value.setTheme(
+    dark ? 'dark' : 'classic',
+    dark ? 'dark' : 'light',
+    dark ? 'native' : 'github'
+  )
+}
+
+function setEditorContent(markdown: string, clearStack = false) {
+  content.value = markdown
+
+  if (editor.value && editorReady.value && editor.value.getValue() !== markdown) {
+    editor.value.setValue(markdown, clearStack)
   }
 }
 
-async function focusEditor(position?: number) {
+function getEditorContent() {
+  const latest = editor.value?.getValue() ?? content.value
+
+  if (latest !== content.value) {
+    content.value = latest
+  }
+
+  return latest
+}
+
+async function focusEditor() {
   await nextTick()
-  const editor = editorRef.value
-
-  if (!editor) return
-
-  editor.focus()
-
-  if (typeof position === 'number') {
-    editor.setSelectionRange(position, position)
-  }
+  editor.value?.focus()
 }
 
-function replaceSelection(value: string, cursorOffset = value.length) {
-  const { start, end } = getSelectionRange()
-  const before = content.value.slice(0, start)
-  const after = content.value.slice(end)
-
-  content.value = `${before}${value}${after}`
-  void focusEditor(start + cursorOffset)
-}
-
-function replaceRange(start: number, end: number, value: string, selectStart?: number, selectEnd?: number) {
-  const before = content.value.slice(0, start)
-  const after = content.value.slice(end)
-
-  content.value = `${before}${value}${after}`
-
-  void nextTick(() => {
-    const editor = editorRef.value
-
-    if (!editor) return
-
-    editor.focus()
-    editor.setSelectionRange(selectStart ?? start, selectEnd ?? start + value.length)
-  })
-}
-
-function wrapSelection(prefix: string, suffix = prefix, placeholder = '内容') {
-  const { start, end } = getSelectionRange()
-  const selected = content.value.slice(start, end) || placeholder
-  const next = `${prefix}${selected}${suffix}`
-  const before = content.value.slice(0, start)
-  const after = content.value.slice(end)
-
-  content.value = `${before}${next}${after}`
-  void focusEditor(start + prefix.length + selected.length)
-}
-
-function ensureBlockPrefix(start: number) {
-  return start > 0 && !content.value.slice(0, start).endsWith('\n') ? '\n' : ''
-}
-
-function getSelectedLineRange() {
-  const { start, end } = getSelectionRange()
-  const value = content.value
-  const lineStart = value.lastIndexOf('\n', Math.max(0, start - 1)) + 1
-  let lineEnd = end
-
-  if (lineEnd < value.length && value[lineEnd] !== '\n') {
-    const nextBreak = value.indexOf('\n', lineEnd)
-    lineEnd = nextBreak === -1 ? value.length : nextBreak
-  }
-
-  return {
-    start,
-    end,
-    lineStart,
-    lineEnd,
-    text: value.slice(lineStart, lineEnd)
-  }
-}
-
-function stripBlockPrefix(line: string) {
-  return line
-    .replace(/^\s{0,3}#{1,6}\s+/, '')
-    .replace(/^\s{0,3}>\s?/, '')
-    .replace(/^\s{0,3}-\s+\[[ xX]\]\s+/, '')
-    .replace(/^\s{0,3}(?:[-*+]|\d+\.)\s+/, '')
-}
-
-function replaceSelectedLines(formatLine: (line: string, index: number) => string, placeholder: string) {
-  const range = getSelectedLineRange()
-  const hasSelection = range.start !== range.end
-  const shouldFormatCurrentLine = !hasSelection && range.text.trim()
-  const source = hasSelection || shouldFormatCurrentLine ? range.text : placeholder
-  const lines = source.split('\n')
-  const formatted = lines
-    .map((line, index) => {
-      if (!line.trim()) return line
-
-      return formatLine(line, index)
-    })
-    .join('\n')
-
-  if (hasSelection || shouldFormatCurrentLine) {
-    replaceRange(range.lineStart, range.lineEnd, formatted, range.lineStart, range.lineStart + formatted.length)
+function openImporter() {
+  if (!showCreateTools.value) {
+    setError('编辑当前文档时不能导入为新文档，请从首页新建文档后再导入。')
     return
   }
 
-  insertBlock(formatted, formatted.length)
-}
-
-function insertBlock(markdown: string, cursorOffset = markdown.length) {
-  const { start } = getSelectionRange()
-  const prefix = ensureBlockPrefix(start)
-  const value = `${prefix}${markdown}${markdown.endsWith('\n') ? '' : '\n'}`
-
-  replaceSelection(value, prefix.length + cursorOffset)
-}
-
-function insertHeading(level: number) {
-  const hashes = '#'.repeat(level)
-  const range = getSelectedLineRange()
-  const selected = content.value.slice(range.start, range.end)
-
-  if (selected.includes('\n')) {
-    replaceSelectedLines((line) => `${hashes} ${stripBlockPrefix(line)}`, '标题')
-    return
-  }
-
-  if (!selected && range.text.trim()) {
-    const text = stripBlockPrefix(range.text)
-    const value = `${hashes} ${text}`
-
-    replaceRange(range.lineStart, range.lineEnd, value, range.lineStart + hashes.length + 1, range.lineStart + value.length)
-    return
-  }
-
-  const text = stripBlockPrefix(selected || '标题')
-  const prefix = ensureBlockPrefix(range.start)
-  const value = `${prefix}${hashes} ${text}\n`
-
-  replaceSelection(value, prefix.length + hashes.length + 1 + text.length)
-}
-
-function insertCodeBlock() {
-  const { start, end } = getSelectionRange()
-  const selected = content.value.slice(start, end) || '# 在这里写命令或代码'
-  const prefix = ensureBlockPrefix(start)
-  const value = `${prefix}\`\`\`bash\n${selected}\n\`\`\`\n`
-
-  replaceSelection(value, prefix.length + 8)
-}
-
-function insertTable() {
-  insertBlock('| 字段 | 说明 | 示例 |\n| --- | --- | --- |\n|  |  |  |', 42)
-}
-
-function insertQuote() {
-  replaceSelectedLines((line) => `> ${line.replace(/^\s{0,3}>\s?/, '')}`, '这里写引用或提示')
-}
-
-function insertUnorderedList() {
-  replaceSelectedLines((line) => `- ${stripBlockPrefix(line)}`, '第一项\n第二项\n第三项')
-}
-
-function insertOrderedList() {
-  replaceSelectedLines((line, index) => `${index + 1}. ${stripBlockPrefix(line)}`, '第一项\n第二项\n第三项')
-}
-
-function insertTaskList() {
-  replaceSelectedLines((line) => `- [ ] ${stripBlockPrefix(line)}`, '待办事项\n继续补充')
-}
-
-function insertHorizontalRule() {
-  insertBlock('---')
-}
-
-function insertLink() {
-  const { start, end } = getSelectionRange()
-  const selected = content.value.slice(start, end) || '链接文字'
-  const value = `[${selected}](https://example.com)`
-
-  replaceSelection(value, selected.length + 3)
-}
-
-function indentSelectedLines(reverse = false) {
-  const range = getSelectedLineRange()
-  const lines = range.text.split('\n')
-  const formatted = lines
-    .map((line) => {
-      if (!line) return line
-
-      return reverse ? line.replace(/^ {1,2}/, '') : `  ${line}`
-    })
-    .join('\n')
-
-  replaceRange(range.lineStart, range.lineEnd, formatted, range.lineStart, range.lineStart + formatted.length)
-}
-
-function handleEditorKeydown(event: KeyboardEvent) {
-  const withModifier = event.ctrlKey || event.metaKey
-
-  if (event.key === 'Tab') {
-    event.preventDefault()
-    indentSelectedLines(event.shiftKey)
-    return
-  }
-
-  if (!withModifier) return
-
-  const key = event.key.toLowerCase()
-
-  if (key === 's') {
-    event.preventDefault()
-    void saveFile()
-    return
-  }
-
-  if (key === 'b') {
-    event.preventDefault()
-    wrapSelection('**', '**', '重点内容')
-    return
-  }
-
-  if (key === 'i') {
-    event.preventDefault()
-    wrapSelection('*', '*', '强调内容')
-    return
-  }
-
-  if (key === 'k') {
-    event.preventDefault()
-    insertLink()
-  }
+  markdownInput.value?.click()
 }
 
 function openImagePicker() {
+  if (!user.value.authenticated) {
+    setError('请先登录 GitHub 后再上传图片。')
+    return
+  }
+
   imageInput.value?.click()
-}
-
-async function insertImageFromFile(file: File) {
-  try {
-    uploadingImage.value = true
-    const url = await uploadImageAsset(file)
-    const alt = normalizeTitle(file.name.replace(/\.[^.]+$/, '')) || '图片'
-
-    insertBlock(`![${alt}](${url})`, alt.length + 4)
-    setNotice('图片已上传并插入到文档，记得提交文档让引用生效。')
-  } catch (err) {
-    setError((err as Error).message)
-  } finally {
-    uploadingImage.value = false
-  }
-}
-
-async function handleImageSelect(event: Event) {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
-
-  input.value = ''
-
-  if (!file) return
-
-  await insertImageFromFile(file)
-}
-
-async function handleEditorPaste(event: ClipboardEvent) {
-  const files = Array.from(event.clipboardData?.files || []).filter(isImageFile)
-
-  if (!files.length) return
-
-  event.preventDefault()
-
-  for (const file of files) {
-    await insertImageFromFile(file)
-  }
-}
-
-async function handleEditorDrop(event: DragEvent) {
-  const files = Array.from(event.dataTransfer?.files || []).filter(isImageFile)
-
-  if (!files.length) return
-
-  event.preventDefault()
-
-  for (const file of files) {
-    await insertImageFromFile(file)
-  }
-}
-
-async function uploadImageAsset(file: File) {
-  if (!apiReady.value || !user.value.authenticated || user.value.allowed === false) {
-    throw new Error('请先登录 GitHub 后再上传图片')
-  }
-
-  if (!isImageFile(file)) {
-    throw new Error('只支持上传 png、jpg、jpeg、webp、gif、svg 图片')
-  }
-
-  if (file.size > maxImageBytes) {
-    throw new Error('单张图片不能超过 4MB，建议压缩后再上传')
-  }
-
-  const dataUrl = await readFileAsDataUrl(file)
-  const contentBase64 = dataUrl.split(',')[1] || ''
-  const result = await requestJson('/api/github/asset', {
-    method: 'PUT',
-    body: JSON.stringify({
-      fileName: file.name,
-      contentType: file.type,
-      contentBase64
-    })
-  })
-
-  return result.publicUrl
 }
 
 function isMarkdownFile(file: File) {
   return /\.(md|markdown|mdown)$/i.test(file.name) ||
-    file.type === 'text/markdown' ||
-    file.type === 'text/plain' ||
-    file.type === ''
-}
-
-function isImageFile(file: File) {
-  return /^image\/(png|jpe?g|webp|gif|svg\+xml)$/i.test(file.type) ||
-    /\.(png|jpe?g|webp|gif|svg)$/i.test(file.name)
+    ['text/markdown', 'text/plain', ''].includes(file.type)
 }
 
 function readFileAsText(file: File) {
-  if (typeof file.text === 'function') {
-    return file.text()
-  }
-
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader()
 
     reader.onload = () => resolve(String(reader.result || ''))
-    reader.onerror = () => reject(new Error('读取本地文件失败'))
+    reader.onerror = () => reject(new Error('读取文件失败'))
     reader.readAsText(file, 'utf-8')
   })
 }
@@ -891,54 +420,38 @@ function readFileAsDataUrl(file: File) {
   })
 }
 
-function openImporter() {
-  if (importing.value) return
-
-  if (!showCreateTools.value) {
-    setNotice('当前正在编辑已有文档。导入 Markdown 只用于新建文档，不会覆盖当前文档。')
-    return
-  }
-
-  markdownInput.value?.click()
-}
-
 async function importMarkdownFile(file: File) {
   if (!isMarkdownFile(file)) {
-    setError('请选择 .md 或 .markdown 文档。')
+    setError('只能导入 .md、.markdown 或 .mdown 文件。')
     return
   }
 
   if (file.size > maxImportBytes) {
-    setError('文档超过 3MB，建议拆分后再上传。')
+    setError('Markdown 文件不能超过 3MB。')
     return
   }
 
   importing.value = true
-  setNotice('正在读取本地 Markdown 文档...')
 
   try {
-    const rawContent = (await readFileAsText(file)).replace(/^\uFEFF/, '')
-    const importedTitle = resolveImportedTitle(rawContent, file.name)
-    const importedSlug = normalizeSlug(filenameWithoutMarkdownExt(file.name)) ||
-      normalizeSlug(importedTitle)
+    const markdown = await readFileAsText(file)
+    const nextTitle = resolveImportedTitle(markdown, file.name)
 
     mode.value = 'create'
     hasSourcePath.value = false
-    title.value = importedTitle
-    slug.value = importedSlug
-    categoryPrefix.value ||= categories[0].prefix
-    content.value = ensureMarkdownTitle(rawContent, importedTitle)
-    originalContent.value = ''
     importedFileName.value = file.name
-    commitMessage.value = `docs: add ${importedSlug}`
+    title.value = nextTitle
+    slug.value = normalizeSlug(filenameWithoutMarkdownExt(file.name) || nextTitle)
     sha.value = ''
     loadedPath.value = ''
     lastCommitUrl.value = ''
     saveCompleted.value = false
-    updateCreatePath()
     sideCollapsed.value = false
+    updateCreatePath()
+    setEditorContent(ensureMarkdownTitle(markdown, nextTitle), true)
+    originalContent.value = ''
     setNotice(`已导入 ${file.name}，确认目录、文件名和标题后提交。`)
-    void focusEditor()
+    await focusEditor()
   } catch (err) {
     setError((err as Error).message)
   } finally {
@@ -968,6 +481,88 @@ async function handleImportDrop(event: DragEvent) {
   if (!file) return
 
   await importMarkdownFile(file)
+}
+
+function isSupportedImage(file: File) {
+  return /^image\/(png|jpe?g|webp|gif|svg\+xml)$/i.test(file.type) ||
+    /\.(png|jpe?g|webp|gif|svg)$/i.test(file.name)
+}
+
+async function uploadImageFile(file: File) {
+  if (!user.value.authenticated) {
+    throw new Error('请先登录 GitHub 后再上传图片。')
+  }
+
+  if (!isSupportedImage(file)) {
+    throw new Error('只支持上传 png、jpg、jpeg、webp、gif、svg 图片。')
+  }
+
+  if (file.size > maxImageBytes) {
+    throw new Error('单张图片不能超过 4MB。')
+  }
+
+  const dataUrl = await readFileAsDataUrl(file)
+
+  return requestJson('/api/github/asset', {
+    method: 'PUT',
+    body: JSON.stringify({
+      fileName: file.name,
+      contentType: file.type,
+      dataUrl
+    })
+  }) as Promise<{ publicUrl: string }>
+}
+
+async function uploadImages(files: File[]) {
+  if (!files.length) return
+
+  uploadingImage.value = true
+
+  try {
+    const markdown: string[] = []
+
+    for (const file of files) {
+      const result = await uploadImageFile(file)
+      const alt = filenameWithoutMarkdownExt(file.name) || 'image'
+
+      markdown.push(`![${alt}](${result.publicUrl})`)
+    }
+
+    if (markdown.length) {
+      editor.value?.insertValue(`${markdown.join('\n\n')}\n`, true)
+      content.value = editor.value?.getValue() || content.value
+      setNotice(`已上传 ${markdown.length} 张图片。提交文档后线上内容会引用这些图片。`)
+    }
+  } finally {
+    uploadingImage.value = false
+  }
+}
+
+async function handleImageSelect(event: Event) {
+  const input = event.target as HTMLInputElement
+  const files = Array.from(input.files || [])
+
+  input.value = ''
+
+  if (!files.length) return
+
+  try {
+    await uploadImages(files)
+  } catch (err) {
+    setError((err as Error).message)
+  }
+}
+
+async function handleVditorUpload(files: File[]) {
+  try {
+    await uploadImages(files)
+    return null
+  } catch (err) {
+    const message = (err as Error).message
+
+    setError(message)
+    return message
+  }
 }
 
 async function requestJson(url: string, options: RequestInit = {}) {
@@ -1024,21 +619,25 @@ async function loadFile() {
 
   try {
     const file = await requestJson(`/api/github/file?path=${encodeURIComponent(path.value)}`)
-    content.value = file.content || ''
-    originalContent.value = content.value
+    const nextContent = file.content || ''
+
+    setEditorContent(nextContent, true)
+    originalContent.value = nextContent
     sha.value = file.sha || ''
     loadedPath.value = path.value
     mode.value = file.exists ? 'edit' : 'create'
     importedFileName.value = ''
-    title.value = resolveImportedTitle(content.value, path.value.split('/').pop() || '新文档.md')
+    title.value = resolveImportedTitle(nextContent, path.value.split('/').pop() || '新文档.md')
 
-    if (!file.exists && !content.value) {
-      buildTemplate(true)
-      originalContent.value = content.value
+    if (!file.exists && !nextContent) {
+      const template = buildTemplate()
+
+      setEditorContent(template, true)
+      originalContent.value = template
     }
 
     setNotice(file.exists ? '文档已载入，可以编辑。' : '这是新文档，保存后会创建到仓库。')
-    void focusEditor()
+    await focusEditor()
   } catch (err) {
     setError((err as Error).message)
   } finally {
@@ -1047,7 +646,12 @@ async function loadFile() {
 }
 
 async function saveFile() {
-  syncTitleFromContent(content.value)
+  const latest = mode.value === 'create'
+    ? ensureMarkdownTitle(getEditorContent(), title.value)
+    : getEditorContent()
+
+  setEditorContent(latest)
+  syncTitleFromContent(latest)
 
   if (!canSave.value) {
     setError('请先登录 GitHub，并确认路径和内容不为空。')
@@ -1063,7 +667,7 @@ async function saveFile() {
       method: 'PUT',
       body: JSON.stringify({
         path: path.value,
-        content: content.value,
+        content: latest,
         sha: sha.value,
         createOnly: mode.value === 'create',
         message: commitMessage.value || `docs: update ${path.value.split('/').pop()}`
@@ -1075,7 +679,7 @@ async function saveFile() {
     lastCommitUrl.value = result.commitUrl || ''
     mode.value = 'edit'
     hasSourcePath.value = true
-    originalContent.value = content.value
+    originalContent.value = latest
     clearDraft()
     setNotice('提交成功，正在返回文档页。新文档需要等待 Vercel 重新构建后才会显示最新内容。')
     scheduleRedirectToDoc()
@@ -1095,6 +699,7 @@ function scheduleRedirectToDoc() {
 }
 
 function login() {
+  content.value = getEditorContent()
   syncTitleFromContent(content.value)
   saveDraftNow()
 
@@ -1113,7 +718,7 @@ function applyTitleChange() {
   const nextTitle = normalizeTitle(title.value) || '新文档'
 
   title.value = nextTitle
-  content.value = upsertMarkdownTitle(content.value, nextTitle)
+  setEditorContent(upsertMarkdownTitle(getEditorContent(), nextTitle))
 
   if (mode.value === 'create' && slug.value === 'new-note') {
     slug.value = normalizeSlug(nextTitle)
@@ -1130,7 +735,6 @@ function switchToCreate(restoreDraft = false) {
   loadedPath.value = ''
   lastCommitUrl.value = ''
   saveCompleted.value = false
-  previewOpen.value = true
   sideCollapsed.value = false
 
   if (restoreDraft && restoreDraftState()) {
@@ -1144,8 +748,10 @@ function switchToCreate(restoreDraft = false) {
   slug.value = 'new-note'
   categoryPrefix.value = categories[0].prefix
   updateCreatePath()
-  buildTemplate(true)
-  originalContent.value = content.value
+  const template = buildTemplate()
+
+  setEditorContent(template, true)
+  originalContent.value = template
   commitMessage.value = `docs: add ${normalizeSlug(slug.value)}`
   void focusEditor()
 }
@@ -1170,7 +776,7 @@ function restoreDraftState() {
     categoryPrefix.value = categories.some((item) => item.prefix === draft.categoryPrefix)
       ? String(draft.categoryPrefix)
       : categories[0].prefix
-    content.value = draft.content
+    setEditorContent(draft.content, true)
     originalContent.value = ''
     commitMessage.value = draft.commitMessage || `docs: add ${normalizeSlug(slug.value)}`
     importedFileName.value = draft.importedFileName || ''
@@ -1187,7 +793,7 @@ function saveDraftNow() {
     title: title.value,
     slug: slug.value,
     categoryPrefix: categoryPrefix.value,
-    content: content.value,
+    content: getEditorContent(),
     commitMessage: commitMessage.value,
     importedFileName: importedFileName.value
   }
@@ -1208,6 +814,116 @@ function clearDraft() {
   }
 }
 
+async function initEditor() {
+  if (!editorHost.value || editor.value || needsLoginToLoad.value) return
+
+  editorLoading.value = true
+
+  try {
+    const { default: Vditor } = await import('vditor') as { default: VditorConstructor }
+    const dark = isDarkTheme()
+
+    editor.value = new Vditor(editorHost.value, {
+      value: content.value,
+      mode: 'ir',
+      lang: 'zh_CN',
+      icon: 'ant',
+      theme: dark ? 'dark' : 'classic',
+      width: '100%',
+      height: '100%',
+      minHeight: 560,
+      cache: {
+        enable: false
+      },
+      counter: {
+        enable: true,
+        type: 'markdown'
+      },
+      toolbarConfig: {
+        pin: true
+      },
+      toolbar: [
+        'emoji',
+        'headings',
+        'bold',
+        'italic',
+        'strike',
+        '|',
+        'line',
+        'quote',
+        'list',
+        'ordered-list',
+        'check',
+        'outdent',
+        'indent',
+        '|',
+        'code',
+        'inline-code',
+        'link',
+        'table',
+        'upload',
+        '|',
+        'undo',
+        'redo',
+        '|',
+        'edit-mode',
+        'both',
+        'preview',
+        'fullscreen',
+        'outline'
+      ],
+      preview: {
+        delay: 300,
+        maxWidth: 920,
+        mode: 'both',
+        theme: {
+          current: dark ? 'dark' : 'light'
+        },
+        hljs: {
+          enable: true,
+          lineNumber: false,
+          style: dark ? 'native' : 'github'
+        },
+        markdown: {
+          toc: true,
+          footnotes: true,
+          mark: true,
+          codeBlockPreview: true,
+          mathBlockPreview: true
+        }
+      },
+      upload: {
+        accept: 'image/png,image/jpeg,image/jpg,image/webp,image/gif,image/svg+xml',
+        multiple: true,
+        handler: handleVditorUpload
+      },
+      input(value: string) {
+        content.value = value
+        syncTitleFromContent(value)
+      },
+      blur(value: string) {
+        content.value = value
+        syncTitleFromContent(value)
+      },
+      keydown(event: KeyboardEvent) {
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+          event.preventDefault()
+          void saveFile()
+        }
+      },
+      after() {
+        editorReady.value = true
+        editorLoading.value = false
+        applyEditorTheme()
+        void focusEditor()
+      }
+    })
+  } catch (err) {
+    editorLoading.value = false
+    setError(`编辑器加载失败：${(err as Error).message}`)
+  }
+}
+
 onMounted(async () => {
   const search = new URLSearchParams(window.location.search)
   const sourcePath = search.get('path')
@@ -1225,6 +941,8 @@ onMounted(async () => {
   }
 
   await checkLogin()
+  await nextTick()
+  await initEditor()
 
   if (hasSourcePath.value && path.value) {
     if (user.value.authenticated) {
@@ -1233,7 +951,7 @@ onMounted(async () => {
       setNotice('登录 GitHub 后会自动读取当前文档内容。')
     }
   } else {
-    void focusEditor()
+    await focusEditor()
   }
 
   if (wantsImport && !hasSourcePath.value) {
@@ -1241,12 +959,20 @@ onMounted(async () => {
     setNotice('请选择本地 Markdown 文件，确认目录和标题后提交。')
   }
 
+  themeObserver = new MutationObserver(applyEditorTheme)
+  themeObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['class']
+  })
+
   draftReady.value = true
 })
 
 onBeforeUnmount(() => {
   window.clearTimeout(redirectTimer)
   window.clearTimeout(draftTimer)
+  themeObserver?.disconnect()
+  editor.value?.destroy()
 })
 
 watch([categoryPrefix, slug], () => {
@@ -1257,6 +983,10 @@ watch([categoryPrefix, slug], () => {
 })
 
 watch(content, (nextContent) => {
+  if (editor.value && editorReady.value && editor.value.getValue() !== nextContent) {
+    editor.value.setValue(nextContent)
+  }
+
   syncTitleFromContent(nextContent)
 
   if (nextContent !== originalContent.value) {
@@ -1283,6 +1013,7 @@ watch([title, categoryPrefix, slug, commitMessage, importedFileName], scheduleDr
       class="doc-editor__file-input"
       type="file"
       accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+      multiple
       @change="handleImageSelect"
     />
 
@@ -1335,13 +1066,13 @@ watch([title, categoryPrefix, slug, commitMessage, importedFileName], scheduleDr
 
     <section :class="['doc-editor__shell', { 'side-collapsed': sideCollapsed }]">
       <aside class="doc-editor__rail" aria-label="写作快捷操作">
-        <a :href="withBase('/')" title="返回首页">⌂</a>
+        <a :href="withBase('/')" title="返回首页">首页</a>
         <button type="button" class="doc-editor__rail-primary" title="新建文档" @click="startNewDocument">+</button>
         <button v-if="showCreateTools" type="button" title="导入 Markdown" :disabled="importing" @click="openImporter">
-          ↥
+          导入
         </button>
-        <button type="button" title="上传图片" :disabled="uploadingImage" @click="openImagePicker">图</button>
-        <button type="button" title="文档设置" @click="sideCollapsed = !sideCollapsed">☰</button>
+        <button type="button" title="上传图片" :disabled="uploadingImage" @click="openImagePicker">图片</button>
+        <button type="button" title="文档设置" @click="sideCollapsed = !sideCollapsed">设置</button>
         <a :href="githubEditUrl" title="GitHub 网页编辑" target="_blank" rel="noreferrer">GH</a>
       </aside>
 
@@ -1421,40 +1152,6 @@ watch([title, categoryPrefix, slug, commitMessage, importedFileName], scheduleDr
       </aside>
 
       <section class="doc-editor__main">
-        <div class="doc-editor__toolbar">
-          <div class="doc-editor__formatbar" aria-label="Markdown 工具栏">
-            <button type="button" title="一级标题" @click="insertHeading(1)">H1</button>
-            <button type="button" title="二级标题" @click="insertHeading(2)">H2</button>
-            <button type="button" title="三级标题" @click="insertHeading(3)">H3</button>
-            <button type="button" title="加粗" @click="wrapSelection('**', '**', '重点内容')">B</button>
-            <button type="button" title="斜体" @click="wrapSelection('*', '*', '强调内容')">I</button>
-            <button type="button" title="删除线" @click="wrapSelection('~~', '~~', '删除内容')">S</button>
-            <button type="button" title="链接" @click="insertLink">链接</button>
-            <button type="button" title="行内代码" @click="wrapSelection('`', '`', 'code')">`</button>
-            <button type="button" title="代码块" @click="insertCodeBlock">代码</button>
-            <button type="button" title="无序列表" @click="insertUnorderedList">无序</button>
-            <button type="button" title="有序列表" @click="insertOrderedList">有序</button>
-            <button type="button" title="任务列表" @click="insertTaskList">任务</button>
-            <button type="button" title="表格" @click="insertTable">表格</button>
-            <button type="button" title="引用" @click="insertQuote">引用</button>
-            <button type="button" title="分割线" @click="insertHorizontalRule">分割线</button>
-            <button type="button" title="图片" :disabled="uploadingImage" @click="openImagePicker">图片</button>
-          </div>
-          <div class="doc-editor__toolbar-actions">
-            <button type="button" class="ghost" @click="previewOpen = !previewOpen">
-              {{ previewOpen ? '隐藏预览' : '显示预览' }}
-            </button>
-            <button v-if="previewOpen" type="button" class="ghost" @click="previewFirst = !previewFirst">
-              交换位置
-            </button>
-            <div class="doc-editor__quick-stats">
-              <span>{{ editorStats.chars }} 字符</span>
-              <span>{{ editorStats.lines }} 行</span>
-              <span>{{ editorStats.headings }} 标题</span>
-            </div>
-          </div>
-        </div>
-
         <div v-if="notice || error" :class="['doc-editor__message', { error }]">
           {{ error || notice }}
         </div>
@@ -1473,35 +1170,22 @@ watch([title, categoryPrefix, slug, commitMessage, importedFileName], scheduleDr
           </button>
         </div>
 
-        <div v-else :class="['doc-editor__workspace', { 'has-preview': previewOpen, 'preview-first': previewOpen && previewFirst }]">
-          <section class="doc-editor__writer">
-            <div class="doc-editor__pane-head doc-editor__writer-head">
-              <strong>Markdown 编辑</strong>
-              <span>支持粘贴图片、拖入图片、Ctrl/⌘ + S 提交</span>
+        <div v-else class="doc-editor__workspace is-vditor">
+          <div class="doc-editor__vditor-card">
+            <div class="doc-editor__vditor-head">
+              <div>
+                <strong>Markdown 写作器</strong>
+                <span>默认即时渲染，工具栏可切换所见即所得、分屏预览、全屏和大纲。</span>
+              </div>
+              <div class="doc-editor__quick-stats">
+                <span>{{ editorStats.chars }} 字符</span>
+                <span>{{ editorStats.lines }} 行</span>
+                <span>{{ editorStats.headings }} 标题</span>
+              </div>
             </div>
-            <textarea
-              ref="editorRef"
-              v-model="content"
-              class="doc-editor__textarea"
-              spellcheck="false"
-              placeholder="在这里写 Markdown 文档。可以粘贴图片、拖入图片，或用左侧导入本地 Markdown。"
-              @blur="syncTitleFromContent(content)"
-              @drop="handleEditorDrop"
-              @paste="handleEditorPaste"
-              @keydown="handleEditorKeydown"
-            />
-            <div class="doc-editor__drop-hint">
-              Markdown 源文档会直接写入 GitHub。图片上传会先生成静态资源路径，提交文档后线上生效。
-            </div>
-          </section>
-
-          <aside v-show="previewOpen" class="doc-editor__preview-panel">
-            <div class="doc-editor__pane-head doc-editor__preview-head">
-              <strong>实时预览</strong>
-              <button type="button" @click="previewOpen = false">隐藏</button>
-            </div>
-            <article class="doc-editor__preview-body" v-html="previewHtml"></article>
-          </aside>
+            <div ref="editorHost" class="doc-editor__vditor"></div>
+            <div v-if="editorLoading" class="doc-editor__editor-loading">正在加载编辑器...</div>
+          </div>
         </div>
 
         <div class="doc-editor__footer">

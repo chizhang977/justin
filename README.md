@@ -56,7 +56,7 @@ GitHub Pages 适合作为静态访问地址；Vercel 用来承载完整功能，
 - Vercel
 - GitHub OAuth
 - GitHub Contents API
-- 自定义 Markdown 写作器
+- Vditor Markdown 编辑器
 
 ## 目录结构
 
@@ -224,7 +224,7 @@ repo
 
 1. 打开首页，点击 `新建文档`。
 2. 选择分类目录和文件名。
-3. 在大面积写作区直接编辑 Markdown，需要查看效果时打开右侧预览。
+3. 在 Vditor 编辑器里写 Markdown，默认是类似 Typora 的即时渲染模式。
 4. 登录 GitHub。
 5. 点击 `提交`。
 6. 等待 Vercel 重新构建后访问新文档。
@@ -246,7 +246,7 @@ repo
 
 ### 图片上传
 
-编辑器支持上传本地图片。图片会通过 `/api/github/asset` 写入：
+编辑器基于 Vditor，支持即时渲染、所见即所得、分屏预览、标题、列表、任务列表、表格、代码块、图片、全屏和大纲。图片上传会通过 `/api/github/asset` 写入：
 
 ```text
 docs/src/public/assets/uploads/YYYY/MM/

@@ -4984,3 +4984,324 @@
     padding: 22px 18px 54px;
   }
 }
+
+/* Vditor based online writer */
+.doc-editor__workspace.is-vditor {
+  display: block;
+  flex: 1 1 auto;
+  min-height: calc(100vh - 98px);
+  padding: 22px 26px 34px;
+}
+
+.doc-editor__vditor-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 142px);
+  min-height: 640px;
+  overflow: hidden;
+  border: 1px solid var(--writer-border);
+  border-radius: 8px;
+  background: var(--writer-panel);
+  box-shadow: var(--writer-shadow);
+}
+
+.doc-editor__vditor-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 52px;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--writer-border);
+  background: color-mix(in srgb, var(--writer-panel) 95%, var(--writer-panel-soft));
+}
+
+.doc-editor__vditor-head div:first-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.doc-editor__vditor-head strong {
+  color: var(--writer-text);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.doc-editor__vditor-head span {
+  color: var(--writer-muted);
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.doc-editor__vditor {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.doc-editor__editor-loading {
+  position: absolute;
+  inset: 52px 0 0;
+  display: grid;
+  place-items: center;
+  color: var(--writer-muted);
+  font-size: 14px;
+  font-weight: 800;
+  background: var(--writer-panel);
+}
+
+.doc-editor .vditor {
+  height: 100% !important;
+  border: 0;
+  border-radius: 0;
+  color: var(--writer-text);
+  background: var(--writer-panel);
+  --toolbar-icon-hover-color: var(--writer-accent);
+  --toolbar-icon-color: var(--writer-muted);
+}
+
+.doc-editor .vditor-toolbar {
+  flex: 0 0 auto;
+  min-height: 45px;
+  padding: 6px 12px !important;
+  border-bottom: 1px solid var(--writer-border);
+  background: var(--writer-panel) !important;
+}
+
+.doc-editor .vditor-toolbar--pin {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+}
+
+.doc-editor .vditor-toolbar__item {
+  margin: 0 1px;
+}
+
+.doc-editor .vditor-toolbar__item button {
+  width: 30px;
+  min-height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  color: var(--writer-muted);
+  background: transparent;
+}
+
+.doc-editor .vditor-toolbar__item button:hover,
+.doc-editor .vditor-toolbar__item--current button {
+  color: var(--writer-accent);
+  background: color-mix(in srgb, var(--writer-accent) 9%, var(--writer-panel));
+}
+
+.doc-editor .vditor-toolbar__divider {
+  height: 18px;
+  margin: 6px 6px 0;
+  border-left-color: var(--writer-border);
+}
+
+.doc-editor .vditor-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  background: var(--writer-panel);
+}
+
+.doc-editor .vditor-ir,
+.doc-editor .vditor-wysiwyg,
+.doc-editor .vditor-sv {
+  background: var(--writer-panel);
+}
+
+.doc-editor .vditor-ir pre.vditor-reset,
+.doc-editor .vditor-wysiwyg .vditor-reset,
+.doc-editor .vditor-preview .vditor-reset {
+  width: min(960px, calc(100% - 48px));
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 38px 0 80px !important;
+  color: var(--writer-text);
+  font-family: var(--vp-font-family-base);
+  font-size: 16px;
+  line-height: 1.9;
+}
+
+.doc-editor .vditor-sv .vditor-input,
+.doc-editor .vditor-sv .vditor-preview {
+  color: var(--writer-text);
+  font-family: var(--vp-font-family-base);
+  font-size: 15px;
+  line-height: 1.85;
+  background: var(--writer-panel);
+}
+
+.doc-editor .vditor-sv .vditor-input {
+  padding: 32px 34px !important;
+  border-right: 1px solid var(--writer-border);
+}
+
+.doc-editor .vditor-reset h1,
+.doc-editor .vditor-reset h2,
+.doc-editor .vditor-reset h3,
+.doc-editor .vditor-reset h4 {
+  color: var(--writer-text);
+  letter-spacing: 0;
+}
+
+.doc-editor .vditor-reset h1 {
+  font-size: 32px;
+  line-height: 1.3;
+}
+
+.doc-editor .vditor-reset h2 {
+  margin-top: 34px;
+  padding-top: 18px;
+  border-top: 1px solid var(--writer-border);
+  font-size: 24px;
+}
+
+.doc-editor .vditor-reset h3 {
+  margin-top: 26px;
+  font-size: 19px;
+}
+
+.doc-editor .vditor-reset p,
+.doc-editor .vditor-reset li {
+  color: var(--writer-muted);
+}
+
+.doc-editor .vditor-reset strong {
+  color: var(--writer-text);
+}
+
+.doc-editor .vditor-reset a {
+  color: var(--writer-accent);
+  text-decoration: none;
+}
+
+.doc-editor .vditor-reset blockquote {
+  border-left: 3px solid var(--writer-accent);
+  border-radius: 0 8px 8px 0;
+  color: var(--writer-muted);
+  background: color-mix(in srgb, var(--writer-accent) 7%, var(--writer-panel));
+}
+
+.doc-editor .vditor-reset table {
+  overflow: hidden;
+  border: 1px solid var(--writer-border);
+  border-radius: 8px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.doc-editor .vditor-reset th,
+.doc-editor .vditor-reset td {
+  border-right: 1px solid var(--writer-border);
+  border-bottom: 1px solid var(--writer-border);
+}
+
+.doc-editor .vditor-reset th {
+  color: var(--writer-text);
+  background: var(--writer-panel-soft);
+}
+
+.doc-editor .vditor-reset tr:last-child td {
+  border-bottom: 0;
+}
+
+.doc-editor .vditor-reset th:last-child,
+.doc-editor .vditor-reset td:last-child {
+  border-right: 0;
+}
+
+.doc-editor .vditor-reset code:not(.hljs) {
+  color: var(--writer-accent);
+  background: var(--writer-panel-soft);
+}
+
+.doc-editor .vditor-reset pre > code {
+  font-family: var(--vp-font-family-mono);
+}
+
+.doc-editor .vditor-panel,
+.doc-editor .vditor-hint,
+.doc-editor .vditor-menu {
+  border-color: var(--writer-border);
+  color: var(--writer-text);
+  background: var(--writer-panel);
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.14);
+}
+
+.doc-editor .vditor-counter {
+  color: var(--writer-faint);
+}
+
+.doc-editor .vditor-outline {
+  border-left: 1px solid var(--writer-border);
+  background: var(--writer-panel-soft);
+}
+
+.dark .doc-editor .vditor,
+.dark .doc-editor .vditor-toolbar,
+.dark .doc-editor .vditor-content,
+.dark .doc-editor .vditor-ir,
+.dark .doc-editor .vditor-wysiwyg,
+.dark .doc-editor .vditor-sv,
+.dark .doc-editor .vditor-sv .vditor-input,
+.dark .doc-editor .vditor-sv .vditor-preview {
+  color: var(--writer-text);
+  background: var(--writer-panel) !important;
+}
+
+.dark .doc-editor .vditor-reset p,
+.dark .doc-editor .vditor-reset li,
+.dark .doc-editor .vditor-reset blockquote {
+  color: var(--writer-muted);
+}
+
+.dark .doc-editor .vditor-panel,
+.dark .doc-editor .vditor-hint,
+.dark .doc-editor .vditor-menu {
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.36);
+}
+
+@media (max-width: 1180px) {
+  .doc-editor__workspace.is-vditor {
+    padding: 18px;
+  }
+
+  .doc-editor__vditor-card {
+    height: auto;
+    min-height: 72vh;
+  }
+}
+
+@media (max-width: 760px) {
+  .doc-editor__workspace.is-vditor {
+    padding: 12px;
+  }
+
+  .doc-editor__vditor-head {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .doc-editor__vditor-head span {
+    display: none;
+  }
+
+  .doc-editor .vditor-ir pre.vditor-reset,
+  .doc-editor .vditor-wysiwyg .vditor-reset,
+  .doc-editor .vditor-preview .vditor-reset {
+    width: calc(100% - 28px);
+    padding: 24px 0 64px !important;
+    font-size: 15px;
+  }
+
+  .doc-editor .vditor-sv .vditor-input {
+    padding: 22px 18px !important;
+  }
+}
