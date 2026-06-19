@@ -831,7 +831,7 @@ async function initEditor() {
       theme: dark ? 'dark' : 'classic',
       width: '100%',
       height: '100%',
-      minHeight: 560,
+      minHeight: 420,
       cache: {
         enable: false
       },
