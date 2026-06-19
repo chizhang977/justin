@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { withBase } from 'vitepress'
+import '@milkdown/crepe/theme/common/style.css'
+import '@milkdown/crepe/theme/frame.css'
+
+type EditorView = 'write' | 'edit' | 'split' | 'preview'
 
 type UserInfo = {
   authenticated: boolean
@@ -29,15 +33,18 @@ const categories = [
 
 const user = ref<UserInfo>({ authenticated: false })
 const mode = ref<'edit' | 'create'>('edit')
-const editorView = ref<'edit' | 'split' | 'preview'>('split')
+const editorView = ref<EditorView>('write')
 const previewFirst = ref(true)
 const sideCollapsed = ref(true)
 const uploadInput = ref<HTMLInputElement | null>(null)
+const milkdownRoot = ref<HTMLElement | null>(null)
 const apiReady = ref(true)
 const loading = ref(false)
 const saving = ref(false)
 const importing = ref(false)
 const draggingImport = ref(false)
+const milkdownLoading = ref(false)
+const milkdownError = ref('')
 const saveCompleted = ref(false)
 const notice = ref('')
 const error = ref('')
@@ -52,6 +59,8 @@ const lastCommitUrl = ref('')
 const loadedPath = ref('')
 const importedFileName = ref('')
 let redirectTimer: number | undefined
+let milkdownEditor: any
+let milkdownTicket = 0
 const maxImportBytes = 3 * 1024 * 1024
 
 const githubEditUrl = computed(() => {
@@ -453,6 +462,114 @@ function updateCreatePath() {
   sha.value = ''
 }
 
+function syncContentFromMilkdown() {
+  if (milkdownEditor && typeof milkdownEditor.getMarkdown === 'function') {
+    content.value = milkdownEditor.getMarkdown()
+  }
+}
+
+async function destroyMilkdownEditor() {
+  if (!milkdownEditor) {
+    return
+  }
+
+  const editor = milkdownEditor
+  milkdownEditor = null
+  await Promise.resolve(editor.destroy?.())
+}
+
+async function rebuildMilkdownEditor(markdown = content.value) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  const root = milkdownRoot.value
+
+  if (!root) {
+    return
+  }
+
+  const currentTicket = ++milkdownTicket
+  milkdownLoading.value = true
+  milkdownError.value = ''
+
+  try {
+    await destroyMilkdownEditor()
+
+    if (currentTicket !== milkdownTicket) {
+      return
+    }
+
+    root.innerHTML = ''
+
+    const { Crepe } = await import('@milkdown/crepe')
+    const crepe = new Crepe({
+      root,
+      defaultValue: markdown || '',
+      features: {
+        [Crepe.Feature.TopBar]: true
+      }
+    })
+
+    if (typeof crepe.on === 'function') {
+      crepe.on((listener: any) => {
+        if (typeof listener.markdownUpdated === 'function') {
+          listener.markdownUpdated((_ctx: unknown, nextMarkdown: string) => {
+            content.value = nextMarkdown
+          })
+        }
+
+        if (typeof listener.blur === 'function') {
+          listener.blur(() => {
+            syncContentFromMilkdown()
+          })
+        } else if (typeof listener.updated === 'function') {
+          listener.updated(() => {
+            syncContentFromMilkdown()
+          })
+        }
+      })
+    } else {
+      window.setTimeout(() => {
+        if (currentTicket === milkdownTicket) {
+          syncContentFromMilkdown()
+        }
+      }, 0)
+    }
+
+    milkdownEditor = crepe
+    await crepe.create()
+
+    if (currentTicket !== milkdownTicket) {
+      await Promise.resolve(crepe.destroy?.())
+    }
+  } catch (err) {
+    milkdownError.value = `Milkdown 编辑器加载失败：${(err as Error).message || '请确认依赖已经安装'}`
+  } finally {
+    if (currentTicket === milkdownTicket) {
+      milkdownLoading.value = false
+    }
+  }
+}
+
+async function refreshMilkdownEditor(markdown = content.value) {
+  if (editorView.value === 'write') {
+    await rebuildMilkdownEditor(markdown)
+  }
+}
+
+async function switchEditorView(view: EditorView) {
+  if (editorView.value === 'write') {
+    syncContentFromMilkdown()
+  }
+
+  editorView.value = view
+
+  if (view === 'write') {
+    await rebuildMilkdownEditor(content.value)
+  }
+}
+
 function openImporter() {
   if (importing.value) {
     return
@@ -514,7 +631,7 @@ async function importMarkdownFile(file: File) {
     saveCompleted.value = false
     updateCreatePath()
     sideCollapsed.value = false
-    editorView.value = 'split'
+    await switchEditorView('write')
     setNotice(`已导入 ${file.name}，请选择目录并确认标题后提交。`)
   } catch (err) {
     setError((err as Error).message)
@@ -609,11 +726,13 @@ async function loadFile() {
     loadedPath.value = path.value
     mode.value = file.exists ? 'edit' : 'create'
     importedFileName.value = ''
+    title.value = resolveImportedTitle(content.value, path.value.split('/').pop() || '新文档.md')
 
     if (!file.exists && !content.value) {
       buildTemplate(true)
     }
 
+    await refreshMilkdownEditor(content.value)
     setNotice(file.exists ? '文档已载入，可以编辑。' : '这是新文档，保存后会创建到仓库。')
   } catch (err) {
     setError((err as Error).message)
@@ -623,6 +742,8 @@ async function loadFile() {
 }
 
 async function saveFile() {
+  syncContentFromMilkdown()
+
   if (!canSave.value) {
     setError('请先登录 GitHub，并确认路径和内容不为空。')
     return
@@ -675,13 +796,10 @@ function switchToCreate() {
   updateCreatePath()
   buildTemplate(true)
   commitMessage.value = `docs: add ${normalizeSlug(slug.value)}`
+  void refreshMilkdownEditor(content.value)
 }
 
 onMounted(async () => {
-  if (window.innerWidth < 1100) {
-    editorView.value = 'edit'
-  }
-
   const search = new URLSearchParams(window.location.search)
   const sourcePath = search.get('path')
 
@@ -697,10 +815,13 @@ onMounted(async () => {
   if (user.value.authenticated && path.value) {
     await loadFile()
   }
+
+  await refreshMilkdownEditor(content.value)
 })
 
 onBeforeUnmount(() => {
   window.clearTimeout(redirectTimer)
+  void destroyMilkdownEditor()
 })
 
 watch([categoryPrefix, slug], () => {
@@ -729,23 +850,44 @@ watch(path, (nextPath) => {
       @change="handleFileImport"
     />
 
-    <section class="doc-editor__hero">
-      <div>
-        <p>Online Writer</p>
-        <h1>在线写文档</h1>
-        <span>通过 GitHub OAuth 写入仓库，提交后由 Vercel 或 GitHub Pages 自动重新构建。</span>
+    <header class="doc-editor__topbar">
+      <div class="doc-editor__doc-info">
+        <a :href="withBase('/')" class="doc-editor__brand">Justin Docs</a>
+        <span class="doc-editor__divider"></span>
+        <input
+          v-model="title"
+          class="doc-editor__title-input"
+          type="text"
+          placeholder="未命名文档"
+          @change="buildTemplate()"
+        />
+        <span class="doc-editor__sync-state">
+          {{ saving ? '保存中' : saveCompleted ? '已提交' : milkdownLoading ? '加载中' : '编辑中' }}
+        </span>
       </div>
-      <div class="doc-editor__account">
+
+      <div class="doc-editor__top-actions">
         <template v-if="user.authenticated">
-          <img v-if="user.avatarUrl" :src="user.avatarUrl" alt="" />
-          <strong>{{ user.login }}</strong>
-          <button type="button" @click="logout">退出</button>
+          <span class="doc-editor__user">
+            <img v-if="user.avatarUrl" :src="user.avatarUrl" alt="" />
+            {{ user.login }}
+          </span>
+          <button type="button" class="ghost" @click="logout">退出</button>
         </template>
-        <button v-else type="button" class="primary" :disabled="!apiReady" @click="login">
+        <button v-else type="button" class="ghost" :disabled="!apiReady" @click="login">
           GitHub 登录
         </button>
+        <button type="button" class="ghost" :disabled="importing" @click="openImporter">
+          导入
+        </button>
+        <button type="button" class="ghost" @click="sideCollapsed = !sideCollapsed">
+          {{ sideCollapsed ? '设置' : '收起' }}
+        </button>
+        <button type="button" class="primary" :disabled="saving || !canSave" @click="saveFile">
+          {{ saving ? '提交中...' : '提交' }}
+        </button>
       </div>
-    </section>
+    </header>
 
     <section v-if="!apiReady" class="doc-editor__fallback">
       <strong>当前环境不支持站内提交</strong>
@@ -757,28 +899,16 @@ watch(path, (nextPath) => {
     </section>
 
     <section :class="['doc-editor__shell', { 'side-collapsed': sideCollapsed }]">
-      <aside :class="['doc-editor__side', { collapsed: sideCollapsed }]">
-        <div v-if="sideCollapsed" class="doc-editor__rail">
-          <button type="button" title="展开设置" @click="sideCollapsed = false">设置</button>
-          <button type="button" title="导入 Markdown" :disabled="importing" @click="openImporter">
-            导入
-          </button>
-          <button type="button" title="读取文档" :disabled="loading || !user.authenticated" @click="loadFile">
-            读取
-          </button>
-          <button
-            type="button"
-            class="primary"
-            title="提交文档"
-            :disabled="saving || !canSave"
-            @click="saveFile"
-          >
-            提交
-          </button>
-          <a :href="githubEditUrl" title="GitHub 网页编辑" target="_blank" rel="noreferrer">GitHub</a>
-        </div>
+      <aside class="doc-editor__rail" aria-label="编辑器快捷操作">
+        <button type="button" title="新建文档" @click="switchToCreate">+</button>
+        <button type="button" title="导入 Markdown" :disabled="importing" @click="openImporter">↥</button>
+        <button type="button" title="读取文档" :disabled="loading || !user.authenticated" @click="loadFile">↻</button>
+        <button type="button" title="文档设置" @click="sideCollapsed = !sideCollapsed">☰</button>
+        <a :href="githubEditUrl" title="GitHub 网页编辑" target="_blank" rel="noreferrer">GH</a>
+      </aside>
 
-        <div v-else class="doc-editor__side-panel">
+      <aside v-show="!sideCollapsed" :class="['doc-editor__side', { collapsed: sideCollapsed }]">
+        <div class="doc-editor__side-panel">
           <div class="doc-editor__side-head">
             <strong>文档设置</strong>
             <button type="button" @click="sideCollapsed = true">收起</button>
@@ -860,30 +990,34 @@ watch(path, (nextPath) => {
           <div class="doc-editor__view-tabs" aria-label="编辑视图">
             <button
               type="button"
+              :class="{ active: editorView === 'write' }"
+              @click="switchEditorView('write')"
+            >
+              写作
+            </button>
+            <button
+              type="button"
               :class="{ active: editorView === 'edit' }"
-              @click="editorView = 'edit'"
+              @click="switchEditorView('edit')"
             >
               编辑
             </button>
             <button
               type="button"
               :class="{ active: editorView === 'split' }"
-              @click="editorView = 'split'"
+              @click="switchEditorView('split')"
             >
               分屏
             </button>
             <button
               type="button"
               :class="{ active: editorView === 'preview' }"
-              @click="editorView = 'preview'"
+              @click="switchEditorView('preview')"
             >
               预览
             </button>
           </div>
           <div class="doc-editor__toolbar-actions">
-            <button type="button" :disabled="importing" @click="openImporter">
-              {{ importing ? '导入中...' : '导入' }}
-            </button>
             <button
               type="button"
               :disabled="editorView !== 'split'"
@@ -898,9 +1032,6 @@ watch(path, (nextPath) => {
               <span>{{ editorStats.chars }} 字符</span>
               <span>{{ editorStats.lines }} 行</span>
             </div>
-            <button type="button" class="primary" :disabled="saving || !canSave" @click="saveFile">
-              {{ saving ? '提交中...' : '提交' }}
-            </button>
           </div>
         </div>
 
@@ -915,14 +1046,29 @@ watch(path, (nextPath) => {
         </div>
 
         <div :class="['doc-editor__workspace', `is-${editorView}`, { 'preview-first': previewFirst }]">
+          <section
+            v-show="editorView === 'write'"
+            class="doc-editor__milkdown"
+            @keydown.ctrl.s.prevent="saveFile"
+            @keydown.meta.s.prevent="saveFile"
+          >
+            <div v-if="milkdownLoading" class="doc-editor__milkdown-state">
+              正在加载写作编辑器...
+            </div>
+            <div v-if="milkdownError" class="doc-editor__milkdown-error">
+              <span>{{ milkdownError }}</span>
+              <button type="button" @click="rebuildMilkdownEditor(content)">重试</button>
+            </div>
+            <div ref="milkdownRoot" class="doc-editor__milkdown-root" />
+          </section>
           <textarea
-            v-show="editorView !== 'preview'"
+            v-show="editorView === 'edit' || editorView === 'split'"
             v-model="content"
             spellcheck="false"
             placeholder="在这里写 Markdown 文档..."
           />
           <article
-            v-show="editorView !== 'edit'"
+            v-show="editorView === 'split' || editorView === 'preview'"
             class="doc-editor__preview vp-doc"
             v-html="previewHtml"
           />
