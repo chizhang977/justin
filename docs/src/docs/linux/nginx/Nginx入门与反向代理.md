@@ -317,4 +317,3 @@ proxy_read_timeout 60s;
 proxy_send_timeout 60s;
 ```
 
-但根本上要排查后端为什么慢，例如数据库慢查询、线程池满、外部接口慢。
