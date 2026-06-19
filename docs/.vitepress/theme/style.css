@@ -2824,3 +2824,275 @@
     justify-content: flex-start;
   }
 }
+
+/* online editor workspace layout */
+.doc-editor__shell {
+  grid-template-columns: 286px minmax(0, 1fr);
+  width: min(1400px, calc(100% - 32px));
+  transition: grid-template-columns 0.18s ease;
+}
+
+.doc-editor__shell.side-collapsed {
+  grid-template-columns: 66px minmax(0, 1fr);
+}
+
+.doc-editor__file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.doc-editor__side {
+  min-width: 0;
+  padding: 14px;
+}
+
+.doc-editor__side.collapsed {
+  padding: 8px;
+}
+
+.doc-editor__side-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.doc-editor__side-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.doc-editor__side-head strong {
+  color: var(--vp-c-text-1);
+  font-size: 14px;
+}
+
+.doc-editor__side-head button {
+  min-height: 30px;
+  padding: 0 10px;
+}
+
+.doc-editor__rail {
+  display: grid;
+  gap: 8px;
+}
+
+.doc-editor__rail button,
+.doc-editor__rail a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  min-height: 42px;
+  padding: 0 4px;
+  border: 1px solid #d8dee8;
+  border-radius: 8px;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.dark .doc-editor__rail button,
+.dark .doc-editor__rail a {
+  border-color: #263347;
+  color: #f8fafc;
+  background: #111827;
+}
+
+.doc-editor__rail button.primary {
+  border-color: var(--justin-accent);
+  color: #ffffff;
+  background: var(--justin-accent);
+}
+
+.doc-editor__import {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px dashed color-mix(in srgb, var(--vp-c-brand-1) 36%, #d8dee8);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--vp-c-brand-soft) 42%, #ffffff);
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+
+.dark .doc-editor__import {
+  border-color: color-mix(in srgb, var(--vp-c-brand-1) 38%, #263347);
+  background: color-mix(in srgb, var(--vp-c-brand-soft) 32%, #111827);
+}
+
+.doc-editor__import.dragging {
+  border-color: var(--vp-c-brand-1);
+  background: var(--vp-c-brand-soft);
+}
+
+.doc-editor__import div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.doc-editor__import strong {
+  color: var(--vp-c-text-1);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.doc-editor__import span {
+  overflow: hidden;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 760;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dark .doc-editor__import span {
+  color: #94a3b8;
+}
+
+.doc-editor__import button {
+  flex: 0 0 auto;
+  min-height: 32px;
+  padding: 0 10px;
+}
+
+.doc-editor__advanced {
+  display: grid;
+  gap: 10px;
+}
+
+.doc-editor__advanced summary {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.dark .doc-editor__advanced summary {
+  color: #94a3b8;
+}
+
+.doc-editor__toolbar {
+  flex-wrap: wrap;
+}
+
+.doc-editor__toolbar-actions {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.doc-editor__toolbar-actions button {
+  min-height: 32px;
+  padding: 0 12px;
+}
+
+.doc-editor__toolbar-actions button.primary {
+  min-width: 86px;
+}
+
+.doc-editor__quick-stats {
+  flex: 0 0 auto;
+}
+
+.doc-editor__workspace.is-split {
+  grid-template-columns: minmax(0, 0.58fr) minmax(0, 0.42fr);
+}
+
+.doc-editor__workspace.is-split.preview-first {
+  grid-template-columns: minmax(0, 0.42fr) minmax(0, 0.58fr);
+}
+
+.doc-editor__workspace textarea {
+  order: 1;
+}
+
+.doc-editor__preview {
+  order: 2;
+}
+
+.doc-editor__workspace.preview-first textarea {
+  order: 2;
+}
+
+.doc-editor__workspace.preview-first .doc-editor__preview {
+  order: 1;
+  border-right: 1px solid #d8dee8;
+  border-left: 0;
+}
+
+.dark .doc-editor__workspace.preview-first .doc-editor__preview {
+  border-color: #263347;
+}
+
+.doc-editor__workspace.is-preview .doc-editor__preview {
+  border-right: 0;
+}
+
+@media (max-width: 1100px) {
+  .doc-editor__shell,
+  .doc-editor__shell.side-collapsed {
+    grid-template-columns: 1fr;
+  }
+
+  .doc-editor__side.collapsed {
+    position: static;
+  }
+
+  .doc-editor__rail {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .doc-editor__rail button,
+  .doc-editor__rail a {
+    width: 100%;
+  }
+
+  .doc-editor__workspace.is-split,
+  .doc-editor__workspace.is-split.preview-first {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .doc-editor__workspace.preview-first textarea {
+    order: 1;
+  }
+
+  .doc-editor__workspace.preview-first .doc-editor__preview {
+    order: 2;
+    border-right: 0;
+    border-top: 1px solid #d8dee8;
+  }
+
+  .dark .doc-editor__workspace.preview-first .doc-editor__preview {
+    border-color: #263347;
+  }
+}
+
+@media (max-width: 560px) {
+  .doc-editor__rail {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .doc-editor__import {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .doc-editor__import button {
+    width: 100%;
+  }
+}

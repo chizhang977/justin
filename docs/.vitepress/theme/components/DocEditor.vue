@@ -30,9 +30,14 @@ const categories = [
 const user = ref<UserInfo>({ authenticated: false })
 const mode = ref<'edit' | 'create'>('edit')
 const editorView = ref<'edit' | 'split' | 'preview'>('split')
+const previewFirst = ref(true)
+const sideCollapsed = ref(true)
+const uploadInput = ref<HTMLInputElement | null>(null)
 const apiReady = ref(true)
 const loading = ref(false)
 const saving = ref(false)
+const importing = ref(false)
+const draggingImport = ref(false)
 const saveCompleted = ref(false)
 const notice = ref('')
 const error = ref('')
@@ -45,7 +50,9 @@ const categoryPrefix = ref(categories[0].prefix)
 const commitMessage = ref('')
 const lastCommitUrl = ref('')
 const loadedPath = ref('')
+const importedFileName = ref('')
 let redirectTimer: number | undefined
+const maxImportBytes = 3 * 1024 * 1024
 
 const githubEditUrl = computed(() => {
   const target = path.value || `${categoryPrefix.value}${normalizeSlug(slug.value)}.md`
@@ -92,6 +99,72 @@ function normalizeSlug(value: string) {
     .replace(/[\\/:*?"<>|#]+/g, '-')
     .replace(/\s+/g, '-')
     .replace(/^-+|-+$/g, '') || 'new-note'
+}
+
+function normalizeTitle(value: string) {
+  return String(value || '')
+    .trim()
+    .replace(/^['"]+|['"]+$/g, '')
+    .replace(/\s+#+$/g, '')
+    .trim()
+}
+
+function filenameWithoutMarkdownExt(fileName: string) {
+  return fileName.replace(/\.(md|markdown|mdown)$/i, '')
+}
+
+function extractFrontmatter(markdown: string) {
+  return /^---\s*\n([\s\S]*?)\n---/.exec(markdown)
+}
+
+function extractFrontmatterTitle(markdown: string) {
+  const match = extractFrontmatter(markdown)
+
+  if (!match) {
+    return ''
+  }
+
+  const titleLine = /^title\s*:\s*(.+)$/m.exec(match[1])
+
+  return titleLine ? normalizeTitle(titleLine[1]) : ''
+}
+
+function extractFirstHeading(markdown: string) {
+  const match = /(?:^|\n)#\s+(.+?)(?=\n|$)/.exec(markdown)
+
+  return match ? normalizeTitle(match[1]) : ''
+}
+
+function resolveImportedTitle(markdown: string, fileName: string) {
+  return extractFrontmatterTitle(markdown) ||
+    extractFirstHeading(markdown) ||
+    normalizeTitle(filenameWithoutMarkdownExt(fileName).replace(/[-_]+/g, ' ')) ||
+    '新文档'
+}
+
+function formatFrontmatterTitle(value: string) {
+  const normalized = normalizeTitle(value).replace(/\r?\n/g, ' ')
+
+  return `"${normalized.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
+}
+
+function ensureMarkdownTitle(markdown: string, docTitle: string) {
+  const normalizedTitle = normalizeTitle(docTitle) || '新文档'
+
+  if (extractFrontmatterTitle(markdown) || extractFirstHeading(markdown)) {
+    return markdown
+  }
+
+  const frontmatter = extractFrontmatter(markdown)
+
+  if (frontmatter) {
+    const firstLineEnd = markdown.indexOf('\n', frontmatter.index)
+    const insertAt = firstLineEnd === -1 ? frontmatter.index + frontmatter[0].length : firstLineEnd + 1
+
+    return `${markdown.slice(0, insertAt)}title: ${formatFrontmatterTitle(normalizedTitle)}\n${markdown.slice(insertAt)}`
+  }
+
+  return `# ${normalizedTitle}\n\n${markdown.trimStart()}`
 }
 
 function setNotice(message: string) {
@@ -380,6 +453,101 @@ function updateCreatePath() {
   sha.value = ''
 }
 
+function openImporter() {
+  if (importing.value) {
+    return
+  }
+
+  uploadInput.value?.click()
+}
+
+function isMarkdownFile(file: File) {
+  return /\.(md|markdown|mdown)$/i.test(file.name) ||
+    file.type === 'text/markdown' ||
+    file.type === 'text/plain' ||
+    file.type === ''
+}
+
+function readFileAsText(file: File) {
+  if (typeof file.text === 'function') {
+    return file.text()
+  }
+
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.onerror = () => reject(new Error('读取本地文件失败'))
+    reader.readAsText(file, 'utf-8')
+  })
+}
+
+async function importMarkdownFile(file: File) {
+  if (!isMarkdownFile(file)) {
+    setError('请选择 .md 或 .markdown 文档。')
+    return
+  }
+
+  if (file.size > maxImportBytes) {
+    setError('文档超过 3MB，建议拆分后再上传。')
+    return
+  }
+
+  importing.value = true
+  setNotice('正在读取本地 Markdown 文档...')
+
+  try {
+    const rawContent = (await readFileAsText(file)).replace(/^\uFEFF/, '')
+    const importedTitle = resolveImportedTitle(rawContent, file.name)
+    const importedSlug = normalizeSlug(filenameWithoutMarkdownExt(file.name)) ||
+      normalizeSlug(importedTitle)
+
+    mode.value = 'create'
+    title.value = importedTitle
+    slug.value = importedSlug
+    content.value = ensureMarkdownTitle(rawContent, importedTitle)
+    importedFileName.value = file.name
+    commitMessage.value = `docs: add ${importedSlug}`
+    sha.value = ''
+    loadedPath.value = ''
+    lastCommitUrl.value = ''
+    saveCompleted.value = false
+    updateCreatePath()
+    sideCollapsed.value = false
+    editorView.value = 'split'
+    setNotice(`已导入 ${file.name}，请选择目录并确认标题后提交。`)
+  } catch (err) {
+    setError((err as Error).message)
+  } finally {
+    importing.value = false
+  }
+}
+
+async function handleFileImport(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+
+  input.value = ''
+  draggingImport.value = false
+
+  if (!file) {
+    return
+  }
+
+  await importMarkdownFile(file)
+}
+
+async function handleImportDrop(event: DragEvent) {
+  draggingImport.value = false
+  const file = event.dataTransfer?.files?.[0]
+
+  if (!file) {
+    return
+  }
+
+  await importMarkdownFile(file)
+}
+
 async function requestJson(url: string, options: RequestInit = {}) {
   const response = await fetch(url, {
     credentials: 'include',
@@ -440,6 +608,7 @@ async function loadFile() {
     sha.value = file.sha || ''
     loadedPath.value = path.value
     mode.value = file.exists ? 'edit' : 'create'
+    importedFileName.value = ''
 
     if (!file.exists && !content.value) {
       buildTemplate(true)
@@ -502,6 +671,7 @@ async function logout() {
 
 function switchToCreate() {
   mode.value = 'create'
+  importedFileName.value = ''
   updateCreatePath()
   buildTemplate(true)
   commitMessage.value = `docs: add ${normalizeSlug(slug.value)}`
@@ -551,6 +721,14 @@ watch(path, (nextPath) => {
 
 <template>
   <main class="doc-editor">
+    <input
+      ref="uploadInput"
+      class="doc-editor__file-input"
+      type="file"
+      accept=".md,.markdown,.mdown,text/markdown,text/plain"
+      @change="handleFileImport"
+    />
+
     <section class="doc-editor__hero">
       <div>
         <p>Online Writer</p>
@@ -578,56 +756,103 @@ watch(path, (nextPath) => {
       <a :href="githubEditUrl" target="_blank" rel="noreferrer">打开 GitHub 编辑</a>
     </section>
 
-    <section class="doc-editor__shell">
-      <aside class="doc-editor__side">
-        <div class="doc-editor__mode">
-          <button type="button" :class="{ active: mode === 'edit' }" @click="mode = 'edit'">编辑</button>
-          <button type="button" :class="{ active: mode === 'create' }" @click="switchToCreate">新建</button>
-        </div>
-
-        <label>
-          <span>文档路径</span>
-          <input v-model="path" type="text" :readonly="mode === 'create'" />
-        </label>
-
-        <template v-if="mode === 'create'">
-          <label>
-            <span>分类目录</span>
-            <select v-model="categoryPrefix">
-              <option v-for="category in categories" :key="category.prefix" :value="category.prefix">
-                {{ category.label }}
-              </option>
-            </select>
-          </label>
-
-          <label>
-            <span>文件名</span>
-            <input v-model="slug" type="text" placeholder="linux-network-note" />
-          </label>
-
-          <label>
-            <span>标题</span>
-            <input v-model="title" type="text" @change="buildTemplate()" />
-          </label>
-        </template>
-
-        <label>
-          <span>提交说明</span>
-          <input v-model="commitMessage" type="text" placeholder="docs: update linux note" />
-        </label>
-
-        <div class="doc-editor__side-actions">
-          <button type="button" :disabled="loading || !user.authenticated" @click="loadFile">
+    <section :class="['doc-editor__shell', { 'side-collapsed': sideCollapsed }]">
+      <aside :class="['doc-editor__side', { collapsed: sideCollapsed }]">
+        <div v-if="sideCollapsed" class="doc-editor__rail">
+          <button type="button" title="展开设置" @click="sideCollapsed = false">设置</button>
+          <button type="button" title="导入 Markdown" :disabled="importing" @click="openImporter">
+            导入
+          </button>
+          <button type="button" title="读取文档" :disabled="loading || !user.authenticated" @click="loadFile">
             读取
           </button>
-          <button type="button" class="primary" :disabled="saving || !canSave" @click="saveFile">
-            {{ saving ? '提交中...' : '提交' }}
+          <button
+            type="button"
+            class="primary"
+            title="提交文档"
+            :disabled="saving || !canSave"
+            @click="saveFile"
+          >
+            提交
           </button>
+          <a :href="githubEditUrl" title="GitHub 网页编辑" target="_blank" rel="noreferrer">GitHub</a>
         </div>
 
-        <a class="doc-editor__github" :href="githubEditUrl" target="_blank" rel="noreferrer">
-          GitHub 网页编辑
-        </a>
+        <div v-else class="doc-editor__side-panel">
+          <div class="doc-editor__side-head">
+            <strong>文档设置</strong>
+            <button type="button" @click="sideCollapsed = true">收起</button>
+          </div>
+
+          <div class="doc-editor__mode">
+            <button type="button" :class="{ active: mode === 'edit' }" @click="mode = 'edit'">编辑</button>
+            <button type="button" :class="{ active: mode === 'create' }" @click="switchToCreate">新建</button>
+          </div>
+
+          <div
+            :class="['doc-editor__import', { dragging: draggingImport }]"
+            @dragenter.prevent="draggingImport = true"
+            @dragover.prevent="draggingImport = true"
+            @dragleave.prevent="draggingImport = false"
+            @drop.prevent="handleImportDrop"
+          >
+            <div>
+              <strong>导入 Markdown</strong>
+              <span v-if="importedFileName">{{ importedFileName }}</span>
+              <span v-else>选择本地 .md 文件</span>
+            </div>
+            <button type="button" :disabled="importing" @click="openImporter">
+              {{ importing ? '导入中...' : '选择文件' }}
+            </button>
+          </div>
+
+          <label>
+            <span>文档路径</span>
+            <input v-model="path" type="text" :readonly="mode === 'create'" />
+          </label>
+
+          <template v-if="mode === 'create'">
+            <label>
+              <span>分类目录</span>
+              <select v-model="categoryPrefix">
+                <option v-for="category in categories" :key="category.prefix" :value="category.prefix">
+                  {{ category.label }}
+                </option>
+              </select>
+            </label>
+
+            <label>
+              <span>文件名</span>
+              <input v-model="slug" type="text" placeholder="linux-network-note" />
+            </label>
+
+            <label>
+              <span>标题</span>
+              <input v-model="title" type="text" @change="buildTemplate()" />
+            </label>
+          </template>
+
+          <details class="doc-editor__advanced">
+            <summary>提交设置</summary>
+            <label>
+              <span>提交说明</span>
+              <input v-model="commitMessage" type="text" placeholder="docs: update linux note" />
+            </label>
+          </details>
+
+          <div class="doc-editor__side-actions">
+            <button type="button" :disabled="loading || !user.authenticated" @click="loadFile">
+              读取
+            </button>
+            <button type="button" class="primary" :disabled="saving || !canSave" @click="saveFile">
+              {{ saving ? '提交中...' : '提交' }}
+            </button>
+          </div>
+
+          <a class="doc-editor__github" :href="githubEditUrl" target="_blank" rel="noreferrer">
+            GitHub 网页编辑
+          </a>
+        </div>
       </aside>
 
       <section class="doc-editor__main">
@@ -655,9 +880,27 @@ watch(path, (nextPath) => {
               预览
             </button>
           </div>
-          <div class="doc-editor__quick-stats">
-            <span>{{ editorStats.chars }} 字符</span>
-            <span>{{ editorStats.lines }} 行</span>
+          <div class="doc-editor__toolbar-actions">
+            <button type="button" :disabled="importing" @click="openImporter">
+              {{ importing ? '导入中...' : '导入' }}
+            </button>
+            <button
+              type="button"
+              :disabled="editorView !== 'split'"
+              @click="previewFirst = !previewFirst"
+            >
+              交换
+            </button>
+            <button type="button" @click="sideCollapsed = !sideCollapsed">
+              {{ sideCollapsed ? '设置' : '收起' }}
+            </button>
+            <div class="doc-editor__quick-stats">
+              <span>{{ editorStats.chars }} 字符</span>
+              <span>{{ editorStats.lines }} 行</span>
+            </div>
+            <button type="button" class="primary" :disabled="saving || !canSave" @click="saveFile">
+              {{ saving ? '提交中...' : '提交' }}
+            </button>
           </div>
         </div>
 
@@ -671,7 +914,7 @@ watch(path, (nextPath) => {
           <a :href="docViewUrl">立即查看文档</a>
         </div>
 
-        <div :class="['doc-editor__workspace', `is-${editorView}`]">
+        <div :class="['doc-editor__workspace', `is-${editorView}`, { 'preview-first': previewFirst }]">
           <textarea
             v-show="editorView !== 'preview'"
             v-model="content"
