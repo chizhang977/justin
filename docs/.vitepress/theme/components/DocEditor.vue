@@ -294,6 +294,7 @@ function renderInlineMarkdown(value: string) {
 
   let html = escapeHtml(source)
 
+  html = html.replace(/~~([^~]+)~~/g, '<del>$1</del>')
   html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
   html = html.replace(/__([^_]+)__/g, '<strong>$1</strong>')
   html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>')
@@ -369,6 +370,12 @@ function renderMarkdown(markdown: string) {
       continue
     }
 
+    if (/^(---|\*\*\*|___)$/.test(trimmed)) {
+      html.push('<hr />')
+      index += 1
+      continue
+    }
+
     if (index + 1 < lines.length && line.includes('|') && isTableSeparator(lines[index + 1])) {
       const tableLines = [line, lines[index + 1]]
 
@@ -391,6 +398,22 @@ function renderMarkdown(markdown: string) {
       }
 
       html.push(`<blockquote><p>${renderInlineMarkdown(quoteLines.join(' '))}</p></blockquote>`)
+      continue
+    }
+
+    if (/^[-*+]\s+\[[ xX]\]\s+/.test(trimmed)) {
+      const items: string[] = []
+
+      while (index < lines.length && /^[-*+]\s+\[[ xX]\]\s+/.test(lines[index].trim())) {
+        const item = lines[index].trim()
+        const checked = /^[-*+]\s+\[[xX]\]\s+/.test(item)
+        const text = item.replace(/^[-*+]\s+\[[ xX]\]\s+/, '')
+
+        items.push(`<li class="task-list-item"><input type="checkbox" disabled${checked ? ' checked' : ''} /> ${renderInlineMarkdown(text)}</li>`)
+        index += 1
+      }
+
+      html.push(`<ul class="task-list">${items.join('')}</ul>`)
       continue
     }
 
@@ -425,7 +448,9 @@ function renderMarkdown(markdown: string) {
       lines[index].trim() &&
       !/^```/.test(lines[index].trim()) &&
       !/^(#{1,6})\s+/.test(lines[index].trim()) &&
+      !/^(---|\*\*\*|___)$/.test(lines[index].trim()) &&
       !/^>\s?/.test(lines[index].trim()) &&
+      !/^[-*+]\s+\[[ xX]\]\s+/.test(lines[index].trim()) &&
       !/^[-*+]\s+/.test(lines[index].trim()) &&
       !/^\d+\.\s+/.test(lines[index].trim())
     ) {
@@ -543,6 +568,22 @@ function replaceSelection(value: string, cursorOffset = value.length) {
   void focusEditor(start + cursorOffset)
 }
 
+function replaceRange(start: number, end: number, value: string, selectStart?: number, selectEnd?: number) {
+  const before = content.value.slice(0, start)
+  const after = content.value.slice(end)
+
+  content.value = `${before}${value}${after}`
+
+  void nextTick(() => {
+    const editor = editorRef.value
+
+    if (!editor) return
+
+    editor.focus()
+    editor.setSelectionRange(selectStart ?? start, selectEnd ?? start + value.length)
+  })
+}
+
 function wrapSelection(prefix: string, suffix = prefix, placeholder = '内容') {
   const { start, end } = getSelectionRange()
   const selected = content.value.slice(start, end) || placeholder
@@ -558,6 +599,56 @@ function ensureBlockPrefix(start: number) {
   return start > 0 && !content.value.slice(0, start).endsWith('\n') ? '\n' : ''
 }
 
+function getSelectedLineRange() {
+  const { start, end } = getSelectionRange()
+  const value = content.value
+  const lineStart = value.lastIndexOf('\n', Math.max(0, start - 1)) + 1
+  let lineEnd = end
+
+  if (lineEnd < value.length && value[lineEnd] !== '\n') {
+    const nextBreak = value.indexOf('\n', lineEnd)
+    lineEnd = nextBreak === -1 ? value.length : nextBreak
+  }
+
+  return {
+    start,
+    end,
+    lineStart,
+    lineEnd,
+    text: value.slice(lineStart, lineEnd)
+  }
+}
+
+function stripBlockPrefix(line: string) {
+  return line
+    .replace(/^\s{0,3}#{1,6}\s+/, '')
+    .replace(/^\s{0,3}>\s?/, '')
+    .replace(/^\s{0,3}-\s+\[[ xX]\]\s+/, '')
+    .replace(/^\s{0,3}(?:[-*+]|\d+\.)\s+/, '')
+}
+
+function replaceSelectedLines(formatLine: (line: string, index: number) => string, placeholder: string) {
+  const range = getSelectedLineRange()
+  const hasSelection = range.start !== range.end
+  const shouldFormatCurrentLine = !hasSelection && range.text.trim()
+  const source = hasSelection || shouldFormatCurrentLine ? range.text : placeholder
+  const lines = source.split('\n')
+  const formatted = lines
+    .map((line, index) => {
+      if (!line.trim()) return line
+
+      return formatLine(line, index)
+    })
+    .join('\n')
+
+  if (hasSelection || shouldFormatCurrentLine) {
+    replaceRange(range.lineStart, range.lineEnd, formatted, range.lineStart, range.lineStart + formatted.length)
+    return
+  }
+
+  insertBlock(formatted, formatted.length)
+}
+
 function insertBlock(markdown: string, cursorOffset = markdown.length) {
   const { start } = getSelectionRange()
   const prefix = ensureBlockPrefix(start)
@@ -568,12 +659,27 @@ function insertBlock(markdown: string, cursorOffset = markdown.length) {
 
 function insertHeading(level: number) {
   const hashes = '#'.repeat(level)
-  const { start, end } = getSelectionRange()
-  const selected = content.value.slice(start, end).replace(/^#{1,6}\s+/, '') || '标题'
-  const prefix = ensureBlockPrefix(start)
-  const value = `${prefix}${hashes} ${selected}\n`
+  const range = getSelectedLineRange()
+  const selected = content.value.slice(range.start, range.end)
 
-  replaceSelection(value, prefix.length + hashes.length + 1 + selected.length)
+  if (selected.includes('\n')) {
+    replaceSelectedLines((line) => `${hashes} ${stripBlockPrefix(line)}`, '标题')
+    return
+  }
+
+  if (!selected && range.text.trim()) {
+    const text = stripBlockPrefix(range.text)
+    const value = `${hashes} ${text}`
+
+    replaceRange(range.lineStart, range.lineEnd, value, range.lineStart + hashes.length + 1, range.lineStart + value.length)
+    return
+  }
+
+  const text = stripBlockPrefix(selected || '标题')
+  const prefix = ensureBlockPrefix(range.start)
+  const value = `${prefix}${hashes} ${text}\n`
+
+  replaceSelection(value, prefix.length + hashes.length + 1 + text.length)
 }
 
 function insertCodeBlock() {
@@ -586,15 +692,86 @@ function insertCodeBlock() {
 }
 
 function insertTable() {
-  insertBlock('| 字段 | 说明 |\n| --- | --- |\n|  |  |', 30)
+  insertBlock('| 字段 | 说明 | 示例 |\n| --- | --- | --- |\n|  |  |  |', 42)
 }
 
 function insertQuote() {
-  insertBlock('> 这里写引用或提示', 8)
+  replaceSelectedLines((line) => `> ${line.replace(/^\s{0,3}>\s?/, '')}`, '这里写引用或提示')
 }
 
-function insertList() {
-  insertBlock('- 第一项\n- 第二项\n- 第三项', 5)
+function insertUnorderedList() {
+  replaceSelectedLines((line) => `- ${stripBlockPrefix(line)}`, '第一项\n第二项\n第三项')
+}
+
+function insertOrderedList() {
+  replaceSelectedLines((line, index) => `${index + 1}. ${stripBlockPrefix(line)}`, '第一项\n第二项\n第三项')
+}
+
+function insertTaskList() {
+  replaceSelectedLines((line) => `- [ ] ${stripBlockPrefix(line)}`, '待办事项\n继续补充')
+}
+
+function insertHorizontalRule() {
+  insertBlock('---')
+}
+
+function insertLink() {
+  const { start, end } = getSelectionRange()
+  const selected = content.value.slice(start, end) || '链接文字'
+  const value = `[${selected}](https://example.com)`
+
+  replaceSelection(value, selected.length + 3)
+}
+
+function indentSelectedLines(reverse = false) {
+  const range = getSelectedLineRange()
+  const lines = range.text.split('\n')
+  const formatted = lines
+    .map((line) => {
+      if (!line) return line
+
+      return reverse ? line.replace(/^ {1,2}/, '') : `  ${line}`
+    })
+    .join('\n')
+
+  replaceRange(range.lineStart, range.lineEnd, formatted, range.lineStart, range.lineStart + formatted.length)
+}
+
+function handleEditorKeydown(event: KeyboardEvent) {
+  const withModifier = event.ctrlKey || event.metaKey
+
+  if (event.key === 'Tab') {
+    event.preventDefault()
+    indentSelectedLines(event.shiftKey)
+    return
+  }
+
+  if (!withModifier) return
+
+  const key = event.key.toLowerCase()
+
+  if (key === 's') {
+    event.preventDefault()
+    void saveFile()
+    return
+  }
+
+  if (key === 'b') {
+    event.preventDefault()
+    wrapSelection('**', '**', '重点内容')
+    return
+  }
+
+  if (key === 'i') {
+    event.preventDefault()
+    wrapSelection('*', '*', '强调内容')
+    return
+  }
+
+  if (key === 'k') {
+    event.preventDefault()
+    insertLink()
+  }
 }
 
 function openImagePicker() {
@@ -1248,12 +1425,19 @@ watch([title, categoryPrefix, slug, commitMessage, importedFileName], scheduleDr
           <div class="doc-editor__formatbar" aria-label="Markdown 工具栏">
             <button type="button" title="一级标题" @click="insertHeading(1)">H1</button>
             <button type="button" title="二级标题" @click="insertHeading(2)">H2</button>
+            <button type="button" title="三级标题" @click="insertHeading(3)">H3</button>
             <button type="button" title="加粗" @click="wrapSelection('**', '**', '重点内容')">B</button>
+            <button type="button" title="斜体" @click="wrapSelection('*', '*', '强调内容')">I</button>
+            <button type="button" title="删除线" @click="wrapSelection('~~', '~~', '删除内容')">S</button>
+            <button type="button" title="链接" @click="insertLink">链接</button>
             <button type="button" title="行内代码" @click="wrapSelection('`', '`', 'code')">`</button>
             <button type="button" title="代码块" @click="insertCodeBlock">代码</button>
+            <button type="button" title="无序列表" @click="insertUnorderedList">无序</button>
+            <button type="button" title="有序列表" @click="insertOrderedList">有序</button>
+            <button type="button" title="任务列表" @click="insertTaskList">任务</button>
             <button type="button" title="表格" @click="insertTable">表格</button>
             <button type="button" title="引用" @click="insertQuote">引用</button>
-            <button type="button" title="列表" @click="insertList">列表</button>
+            <button type="button" title="分割线" @click="insertHorizontalRule">分割线</button>
             <button type="button" title="图片" :disabled="uploadingImage" @click="openImagePicker">图片</button>
           </div>
           <div class="doc-editor__toolbar-actions">
@@ -1304,8 +1488,7 @@ watch([title, categoryPrefix, slug, commitMessage, importedFileName], scheduleDr
               @blur="syncTitleFromContent(content)"
               @drop="handleEditorDrop"
               @paste="handleEditorPaste"
-              @keydown.ctrl.s.prevent="saveFile"
-              @keydown.meta.s.prevent="saveFile"
+              @keydown="handleEditorKeydown"
             />
             <div class="doc-editor__drop-hint">
               Markdown 源文档会直接写入 GitHub。图片上传会先生成静态资源路径，提交文档后线上生效。

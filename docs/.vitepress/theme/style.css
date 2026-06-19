@@ -4475,7 +4475,7 @@
 
 .doc-editor__formatbar button {
   min-height: 30px;
-  padding: 0 10px;
+  padding: 0 9px;
   border-color: transparent;
   color: var(--writer-muted);
   background: transparent;
@@ -4746,6 +4746,34 @@
 .doc-editor__preview-body li {
   color: var(--writer-muted);
   font-size: 15px;
+}
+
+.doc-editor__preview-body del {
+  color: var(--writer-faint);
+}
+
+.doc-editor__preview-body hr {
+  margin: 26px 0;
+  border: 0;
+  border-top: 1px solid var(--writer-border);
+}
+
+.doc-editor__preview-body .task-list {
+  padding-left: 0;
+  list-style: none;
+}
+
+.doc-editor__preview-body .task-list-item {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.doc-editor__preview-body .task-list-item input {
+  width: 15px;
+  height: 15px;
+  margin-top: 7px;
+  accent-color: var(--writer-accent);
 }
 
 .doc-editor__preview-body a {
