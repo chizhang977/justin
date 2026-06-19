@@ -45,7 +45,8 @@ const maxImageBytes = 4 * 1024 * 1024
 const user = ref<UserInfo>({ authenticated: false })
 const mode = ref<WriterMode>('create')
 const sideCollapsed = ref(true)
-const previewOpen = ref(false)
+const previewOpen = ref(true)
+const previewFirst = ref(false)
 const markdownInput = ref<HTMLInputElement | null>(null)
 const imageInput = ref<HTMLInputElement | null>(null)
 const editorRef = ref<HTMLTextAreaElement | null>(null)
@@ -952,7 +953,7 @@ function switchToCreate(restoreDraft = false) {
   loadedPath.value = ''
   lastCommitUrl.value = ''
   saveCompleted.value = false
-  previewOpen.value = false
+  previewOpen.value = true
   sideCollapsed.value = false
 
   if (restoreDraft && restoreDraftState()) {
@@ -1257,7 +1258,10 @@ watch([title, categoryPrefix, slug, commitMessage, importedFileName], scheduleDr
           </div>
           <div class="doc-editor__toolbar-actions">
             <button type="button" class="ghost" @click="previewOpen = !previewOpen">
-              {{ previewOpen ? '关闭预览' : '预览' }}
+              {{ previewOpen ? '隐藏预览' : '显示预览' }}
+            </button>
+            <button v-if="previewOpen" type="button" class="ghost" @click="previewFirst = !previewFirst">
+              交换位置
             </button>
             <div class="doc-editor__quick-stats">
               <span>{{ editorStats.chars }} 字符</span>
@@ -1285,8 +1289,12 @@ watch([title, categoryPrefix, slug, commitMessage, importedFileName], scheduleDr
           </button>
         </div>
 
-        <div v-else :class="['doc-editor__workspace', { 'has-preview': previewOpen }]">
+        <div v-else :class="['doc-editor__workspace', { 'has-preview': previewOpen, 'preview-first': previewOpen && previewFirst }]">
           <section class="doc-editor__writer">
+            <div class="doc-editor__pane-head doc-editor__writer-head">
+              <strong>Markdown 编辑</strong>
+              <span>支持粘贴图片、拖入图片、Ctrl/⌘ + S 提交</span>
+            </div>
             <textarea
               ref="editorRef"
               v-model="content"
@@ -1305,9 +1313,9 @@ watch([title, categoryPrefix, slug, commitMessage, importedFileName], scheduleDr
           </section>
 
           <aside v-show="previewOpen" class="doc-editor__preview-panel">
-            <div class="doc-editor__preview-head">
-              <strong>预览</strong>
-              <button type="button" @click="previewOpen = false">关闭</button>
+            <div class="doc-editor__pane-head doc-editor__preview-head">
+              <strong>实时预览</strong>
+              <button type="button" @click="previewOpen = false">隐藏</button>
             </div>
             <article class="doc-editor__preview-body" v-html="previewHtml"></article>
           </aside>

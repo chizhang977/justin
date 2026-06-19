@@ -4564,12 +4564,33 @@
 }
 
 .doc-editor__workspace.has-preview {
-  grid-template-columns: minmax(0, 1fr) minmax(360px, 470px);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: stretch;
+  padding: 24px 28px 38px;
 }
 
 .doc-editor__writer {
   min-width: 0;
   padding: 28px 32px 42px;
+}
+
+.doc-editor__workspace.has-preview .doc-editor__writer {
+  display: flex;
+  flex-direction: column;
+  order: 1;
+  height: calc(100vh - 226px);
+  min-height: 560px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--writer-border);
+  border-radius: 8px;
+  background: var(--writer-panel);
+  box-shadow: var(--writer-shadow);
+}
+
+.doc-editor__workspace.has-preview.preview-first .doc-editor__writer {
+  order: 2;
 }
 
 .doc-editor__workspace .doc-editor__textarea {
@@ -4591,6 +4612,18 @@
   box-shadow: var(--writer-shadow);
 }
 
+.doc-editor__workspace.has-preview .doc-editor__textarea {
+  width: 100%;
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 34px 42px 42px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
 .doc-editor__workspace .doc-editor__textarea::placeholder {
   color: var(--writer-faint);
 }
@@ -4603,38 +4636,85 @@
   line-height: 1.7;
 }
 
-.doc-editor__preview-panel {
-  min-width: 0;
-  border-left: 1px solid var(--writer-border);
-  background: var(--writer-panel);
+.doc-editor__workspace.has-preview .doc-editor__drop-hint {
+  width: auto;
+  margin: 0;
+  padding: 10px 16px;
+  border-top: 1px solid var(--writer-border);
+  background: var(--writer-panel-soft);
 }
 
-.doc-editor__preview-head {
-  position: sticky;
-  top: 106px;
-  z-index: 8;
+.doc-editor__pane-head {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  min-height: 48px;
-  padding: 0 18px;
+  gap: 12px;
+  min-height: 46px;
+  padding: 0 16px;
   border-bottom: 1px solid var(--writer-border);
-  background: color-mix(in srgb, var(--writer-panel) 94%, transparent);
-  backdrop-filter: blur(12px);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--writer-panel) 96%, #ffffff), var(--writer-panel));
 }
 
-.doc-editor__preview-head strong {
+.doc-editor__pane-head strong {
   color: var(--writer-text);
   font-size: 14px;
+  font-weight: 900;
+}
+
+.doc-editor__pane-head span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--writer-faint);
+  font-size: 12px;
+  font-weight: 760;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-editor__writer-head {
+  display: none;
+}
+
+.doc-editor__workspace.has-preview .doc-editor__writer-head {
+  display: flex;
+}
+
+.doc-editor__preview-panel {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  order: 2;
+  height: calc(100vh - 226px);
+  min-height: 560px;
+  overflow: hidden;
+  border: 1px solid var(--writer-border);
+  border-radius: 8px;
+  background: var(--writer-panel);
+  box-shadow: var(--writer-shadow);
+}
+
+.doc-editor__workspace.has-preview.preview-first .doc-editor__preview-panel {
+  order: 1;
+}
+
+.doc-editor__preview-head button {
+  min-height: 30px;
+  padding: 0 10px;
 }
 
 .doc-editor__preview-body {
   max-width: 760px;
-  padding: 30px 28px 72px;
+  width: 100%;
+  flex: 1 1 auto;
+  max-width: none;
+  padding: 34px 42px 72px;
+  overflow: auto;
   color: var(--writer-text);
   font-size: 15px;
   line-height: 1.85;
+  scrollbar-width: thin;
 }
 
 .doc-editor__preview-body h1,
@@ -4665,6 +4745,7 @@
 .doc-editor__preview-body p,
 .doc-editor__preview-body li {
   color: var(--writer-muted);
+  font-size: 15px;
 }
 
 .doc-editor__preview-body a {
@@ -4747,8 +4828,9 @@
 
 .doc-editor-preview-code pre {
   margin: 0;
-  padding: 14px 16px;
+  padding: 16px 18px;
   overflow: auto;
+  line-height: 1.75;
 }
 
 .doc-editor-preview-code code {
@@ -4810,11 +4892,11 @@
 
   .doc-editor__workspace.has-preview {
     grid-template-columns: minmax(0, 1fr);
+    padding: 18px;
   }
 
   .doc-editor__preview-panel {
     border-top: 1px solid var(--writer-border);
-    border-left: 0;
   }
 }
 
@@ -4845,10 +4927,25 @@
     padding: 16px 12px 32px;
   }
 
+  .doc-editor__workspace.has-preview {
+    padding: 16px 12px 32px;
+  }
+
+  .doc-editor__workspace.has-preview .doc-editor__writer {
+    height: auto;
+    min-height: 0;
+  }
+
   .doc-editor__workspace .doc-editor__textarea {
     min-height: calc(100vh - 260px);
     padding: 26px 20px;
     font-size: 15px;
+  }
+
+  .doc-editor__workspace.has-preview .doc-editor__textarea,
+  .doc-editor__preview-panel {
+    height: auto;
+    min-height: 56vh;
   }
 
   .doc-editor__drop-hint {
