@@ -151,7 +151,6 @@ root@localhost(192.168.199.107)/root> systemctl enable mysqld ; systemctl start 
 root@localhost(192.168.199.107)/root> netstat -ntplu | egrep 3306
 ```
 
-
 #### 登录MySQL
 
 MySQL启动后，初始化密码存放在 日志文件中
@@ -173,7 +172,6 @@ affiliates. Other names may be trademarks of their respective
 owners.
 Type 'help;' or '\h' for help. Type '\c' to clear the current input statement
 ```
-
 
 #### 修改初始密码
 
@@ -315,8 +313,6 @@ Ulimit_yum
 Install_mysql
 ```
 
-
-
 ## 主库配置
 
 1.编辑 MySQL 配置文件：
@@ -447,9 +443,7 @@ mysql> INSERT INTO school.user_info-> VALUES-> (11, '11'),(12, '12'),(13, '13'),
 '18'),(19, '19'),(20, '20');
 ```
 
-
-
-查看主库状态：
+8.查看主库状态：
 
 ```sql
 SHOW MASTER STATUS;
@@ -469,33 +463,107 @@ mysql-bin.000001
 
 ## 从库配置
 
-编辑配置：
+1.编辑配置：
 
 ```ini
+root@localhost(192.168.199.107)/root> vim /etc/my.cnf
+# For advice on how to change settings please see
+# http://dev.mysql.com/doc/refman/5.7/en/server-configuration-defaults.html
 [mysqld]
+#
+datadir=/var/lib/mysql
+socket=/var/lib/mysql/mysql.sock
 server-id=2
-read_only=ON
+relay-log=slave-relay-bin
+# Disabling symbolic-links is recommended to prevent assorted security risks
+symbolic-links=0
+log-error=/var/log/mysqld.log
+pid-file=/var/run/mysqld/mysqld.pid
+# 设置二进制日志使用内存大小（事务）
+binlog_cache_size=1M
+# 设置使用的二进制日志格式（mixed,statement,row）
+binlog_format=mixed
+# 二进制日志过期清理时间。默认值为0，表示不自动清理。
+expire_logs_days=7
+# 跳过主从复制中遇到的所有错误或指定类型的错误，避免slave端复制中断。
+# 如：1062错误是指一些主键重复，1032错误是因为主从数据库数据不一致
+slave_skip_errors=1062
+# relay_log配置中继日志
+relay_log=mall-mysql-relay-bin
+# log_slave_updates表示slave将复制事件写进自己的二进制日志
+log_slave_updates=1
+# slave设置为只读（具有super权限的用户除外）
+read_only=1
 ```
 
-重启：
+2.重启：
 
 ```bash
 systemctl restart mysqld
 ```
 
-配置主库信息：
+3.修改 root 密码
+
+```bash
+root@localhost(192.168.199.107)/root> systemctl restart mysqld
+root@localhost(192.168.199.107)/root> egrep -ri password /var/log/mysqld.log
+2023-07-06T06:22:22.285976Z 1 [Note] A temporary password is generated for root@localhost: 
+dP4qob(K(piB
+root@localhost(192.168.199.107)/root> mysql -uroot -p
+Enter password:
+mysql> set global validate_password_policy=0;
+Query OK, 0 rows affected (0.00 sec)
+mysql> set global validate_password_length=1;
+Query OK, 0 rows affected (0.00 sec)
+mysql> alter user user() identified by '123123';
+Query OK, 0 rows affected (0.01 sec)
+```
+
+4.导入master节点的全备
+
+```bash
+root@localhost(192.168.199.107)/root> mysql -uroot -p123123 < backup-all-databses.sql
+mysql: [Warning] Using a password on the command line interface can be insecure.
+```
+
+5.查看全备导入后的数据,通过以上查询得知，数据量和目前master节点的数据量是不匹配的。
+
+6.通过全备文件查看  binlog 日志和  pos 值，这两可以明确一个时间点,接下来，在  slave 节点开启同步master库时，就从这个时间点开始
+
+7.备库设置日志点同步，并启动
+
+8.配置主库信息：
 
 ```sql
-CHANGE MASTER TO
-  MASTER_HOST='192.168.56.10',
-  MASTER_PORT=3306,
-  MASTER_USER='repl',
-  MASTER_PASSWORD='repl_password',
-  MASTER_LOG_FILE='mysql-bin.000001',
-  MASTER_LOG_POS=154;
+root@localhost(192.168.199.107)/root> mysql -uroot -p123123
+mysql> start slave;
+Query OK, 0 rows affected (0.00 sec)
+mysql> change master to 
+master_host='192.168.199.106',master_user='repl',master_password='repl',master_log_file='m
+aster-bin.000002',master_log_pos=1142;
+Query OK, 0 rows affected, 2 warnings (0.03 sec)
+mysql> show slave status\G;
+*************************** 1. row ***************************
+Slave_IO_State: Waiting for master to send event
+Master_Host: 192.168.199.106
+Master_User: repl
+Master_Port: 3306
+Connect_Retry: 60
+Master_Log_File: master-bin.000002
+Read_Master_Log_Pos: 198
 ```
 
 MySQL 8.0.23 以后也可以使用 `CHANGE REPLICATION SOURCE TO`，语义更清晰。
+
+IO和SQL线程均为：Yes 状态，说明主从配置成功。
+
+再次查看数据量是否与主库同步
+
+同步测试 通过在master 上删除10条数据进行测试，查看 slave 是否同步
+
+slave查看数据量是否同
+
+确认无误，master 和 slave 完全同步。
 
 启动复制：
 
