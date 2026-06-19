@@ -43,7 +43,8 @@ GitHub Pages 适合作为静态访问地址；Vercel 用来承载完整功能，
 - 文档底部“本文脉络”，方便回到具体标题。
 - 代码块复制优化，避免复制出多余行号。
 - 支持 GitHub Pages 和 Vercel 双平台部署。
-- 支持 Vercel 环境下在线编辑 Markdown 并提交到 GitHub。
+- 支持 Vercel 环境下在线新建、编辑、导入 Markdown 并提交到 GitHub。
+- 支持在线写作页上传图片到仓库静态资源目录。
 
 ## 技术栈
 
@@ -55,6 +56,7 @@ GitHub Pages 适合作为静态访问地址；Vercel 用来承载完整功能，
 - Vercel
 - GitHub OAuth
 - GitHub Contents API
+- 自定义 Markdown 写作器
 
 ## 目录结构
 
@@ -146,20 +148,24 @@ Vercel 配置在 `vercel.json`：
 
 ## 在线编辑文档
 
-项目提供了 `/write` 页面，可以在线写 Markdown，然后提交到 GitHub 仓库。
+项目提供了 `/write` 页面，可以在线写 Markdown，然后提交到 GitHub 仓库。完整能力只在 Vercel 上可用，因为它需要 Serverless API 保存 GitHub OAuth Secret。
 
-这个功能只能在 Vercel 上完整使用，因为它需要服务端 API 保存 GitHub OAuth Secret。GitHub Pages 是纯静态托管，不能安全写入 GitHub，只能跳转到 GitHub 网页编辑。
+当前入口分成两条：
 
-### 工作流程
+- 首页点击 `新建文档`：进入 `/write`，创建新 Markdown。
+- 文档页点击 `在线编辑`：进入 `/write?path=...`，读取并编辑当前文档。
+
+本地 Markdown 导入放在写作页内部，属于新建文档流程，不再作为首页主入口。
+
+### 写入链路
 
 ```text
-打开 /write
+浏览器写作
   -> GitHub OAuth 登录
-  -> Vercel API 校验用户
-  -> 读取或新建 Markdown
-  -> 提交到 GitHub
+  -> Vercel API 校验用户和路径
+  -> GitHub Contents API 写入 Markdown 或图片
   -> 产生 commit
-  -> Vercel / GitHub Pages 自动重新构建
+  -> Vercel 自动重新构建
 ```
 
 ### GitHub OAuth App 配置
@@ -204,7 +210,7 @@ Project -> Settings -> Environment Variables
 | `GITHUB_BRANCH` | `master` | 写入分支 |
 | `GITHUB_ALLOWED_USERS` | `chizhang977` | 允许在线提交的 GitHub 用户 |
 | `GITHUB_OAUTH_SCOPE` | `public_repo` | 公开仓库写入权限 |
-| `GITHUB_ALLOWED_PREFIXES` | `docs/src/docs/,docs/src/index.md` | 允许编辑的路径白名单 |
+| `GITHUB_ALLOWED_PREFIXES` | `docs/src/docs/,docs/src/index.md` | 允许编辑的 Markdown 路径白名单 |
 
 如果仓库是私有仓库，`GITHUB_OAUTH_SCOPE` 需要改成：
 
@@ -212,31 +218,72 @@ Project -> Settings -> Environment Variables
 repo
 ```
 
+### 使用流程
+
+新建文档：
+
+1. 打开首页，点击 `新建文档`。
+2. 选择分类目录和文件名。
+3. 在大面积写作区直接编辑 Markdown，需要查看效果时打开右侧预览。
+4. 登录 GitHub。
+5. 点击 `提交`。
+6. 等待 Vercel 重新构建后访问新文档。
+
+编辑当前文档：
+
+1. 打开任意文档阅读页。
+2. 点击 `在线编辑`。
+3. 未登录时先登录，登录后会自动读取当前文档内容。
+4. 修改后点击 `提交`。
+5. 提交成功后页面会自动回到该文档。
+
+导入 Markdown：
+
+1. 打开 `/write`。
+2. 点击 `导入`，选择本地 `.md`、`.markdown`、`.mdown` 文件。
+3. 确认分类目录、文件名和标题。
+4. 点击 `提交`。
+
+### 图片上传
+
+编辑器支持上传本地图片。图片会通过 `/api/github/asset` 写入：
+
+```text
+docs/src/public/assets/uploads/YYYY/MM/
+```
+
+Markdown 中保存的路径类似：
+
+```markdown
+![图片说明](/assets/uploads/2026/06/example.png)
+```
+
+支持 `png`、`jpg`、`jpeg`、`webp`、`gif`、`svg`，单张图片建议不超过 4MB。
+
 ### 配置后的测试流程
 
 1. 重新部署 Vercel，让环境变量生效。
-2. 打开 Vercel Production 域名下的 `/write`。
-3. 点击 `GitHub 登录`。
-4. 授权后回到 `/write`。
-5. 新建一篇测试文档，例如：
-
-```text
-docs/src/docs/linux/linux/vercel-editor-test.md
-```
-
-6. 点击 `提交`。
-7. 到 GitHub 仓库确认产生 commit。
-8. 等待 Vercel 自动重新构建。
-9. 在线访问新文档，确认内容已发布。
-10. 测试完成后删除测试文档，或者继续修改它验证编辑已有文档。
+2. 打开 Vercel Production 域名，点击首页 `新建文档`。
+3. 登录 GitHub，创建并提交一篇测试文档。
+4. 到 GitHub 仓库确认产生 commit。
+5. 等待 Vercel 自动重新构建，在线访问新文档。
+6. 打开这篇文档，点击 `在线编辑`，确认能读取当前内容。
+7. 修改后再次提交，确认编辑已有文档可用。
+8. 在写作页上传一张小图片，确认图片写入 `docs/src/public/assets/uploads/` 且页面能显示。
 
 ### 安全边界
 
-在线编辑接口默认只允许编辑：
+Markdown 编辑接口默认只允许编辑：
 
 ```text
 docs/src/docs/
 docs/src/index.md
+```
+
+图片上传接口只写入：
+
+```text
+docs/src/public/assets/uploads/
 ```
 
 并且会检查：

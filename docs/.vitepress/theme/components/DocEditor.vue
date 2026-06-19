@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { withBase } from 'vitepress'
-import '@milkdown/crepe/theme/common/style.css'
-import '@milkdown/crepe/theme/frame.css'
 
-type EditorView = 'write' | 'edit' | 'split' | 'preview'
+type WriterMode = 'create' | 'edit'
 
 type UserInfo = {
   authenticated: boolean
@@ -20,6 +18,15 @@ type UserInfo = {
   }
 }
 
+type DraftPayload = {
+  title: string
+  slug: string
+  categoryPrefix: string
+  content: string
+  commitMessage: string
+  importedFileName: string
+}
+
 const categories = [
   { label: 'Linux', prefix: 'docs/src/docs/linux/linux/' },
   { label: 'MySQL', prefix: 'docs/src/docs/db/mysql/' },
@@ -31,26 +38,30 @@ const categories = [
   { label: 'Java', prefix: 'docs/src/docs/java/' }
 ]
 
+const draftKey = 'justin-docs-online-writer-draft-v3'
+const maxImportBytes = 3 * 1024 * 1024
+const maxImageBytes = 4 * 1024 * 1024
+
 const user = ref<UserInfo>({ authenticated: false })
-const mode = ref<'edit' | 'create'>('edit')
-const editorView = ref<EditorView>('write')
-const previewFirst = ref(true)
+const mode = ref<WriterMode>('create')
 const sideCollapsed = ref(true)
-const uploadInput = ref<HTMLInputElement | null>(null)
-const milkdownRoot = ref<HTMLElement | null>(null)
+const previewOpen = ref(false)
+const markdownInput = ref<HTMLInputElement | null>(null)
+const imageInput = ref<HTMLInputElement | null>(null)
+const editorRef = ref<HTMLTextAreaElement | null>(null)
 const apiReady = ref(true)
 const loading = ref(false)
 const saving = ref(false)
 const importing = ref(false)
+const uploadingImage = ref(false)
 const draggingImport = ref(false)
-const milkdownLoading = ref(false)
-const milkdownError = ref('')
 const saveCompleted = ref(false)
 const notice = ref('')
 const error = ref('')
 const path = ref('')
 const sha = ref('')
 const content = ref('')
+const originalContent = ref('')
 const title = ref('新文档')
 const slug = ref('new-note')
 const categoryPrefix = ref(categories[0].prefix)
@@ -58,10 +69,55 @@ const commitMessage = ref('')
 const lastCommitUrl = ref('')
 const loadedPath = ref('')
 const importedFileName = ref('')
+const hasSourcePath = ref(false)
+const draftReady = ref(false)
+
 let redirectTimer: number | undefined
-let milkdownEditor: any
-let milkdownTicket = 0
-const maxImportBytes = 3 * 1024 * 1024
+let draftTimer: number | undefined
+
+const isEditingCurrentDoc = computed(() => mode.value === 'edit' && hasSourcePath.value)
+const showCreateTools = computed(() => !isEditingCurrentDoc.value)
+const hasUnsavedChanges = computed(() => content.value !== originalContent.value)
+
+const entryLabel = computed(() => {
+  if (isEditingCurrentDoc.value) return '编辑当前文档'
+  if (importedFileName.value) return '导入文档'
+  return '新建文档'
+})
+
+const entryDescription = computed(() => {
+  if (isEditingCurrentDoc.value) return '从文档页进入，只修改当前这篇 Markdown。'
+  if (importedFileName.value) return '已读取本地 Markdown，确认目录和文件名后提交。'
+  return '从首页进入，用来创建一篇新的技术文档。'
+})
+
+const statusText = computed(() => {
+  if (saving.value) return '提交中'
+  if (uploadingImage.value) return '上传图片'
+  if (loading.value) return '读取中'
+  if (saveCompleted.value) return '已提交'
+  if (hasUnsavedChanges.value) return '有未提交修改'
+  return '编辑中'
+})
+
+const currentCategory = computed(() => {
+  return categories.find((item) => item.prefix === categoryPrefix.value)?.label || '文档'
+})
+
+const needsLoginToLoad = computed(() => {
+  return isEditingCurrentDoc.value && !user.value.authenticated
+})
+
+const canSave = computed(() => {
+  return Boolean(
+    apiReady.value &&
+    user.value.authenticated &&
+    user.value.allowed !== false &&
+    path.value.endsWith('.md') &&
+    content.value.trim() &&
+    !saveCompleted.value
+  )
+})
 
 const githubEditUrl = computed(() => {
   const target = path.value || `${categoryPrefix.value}${normalizeSlug(slug.value)}.md`
@@ -74,32 +130,25 @@ const githubEditUrl = computed(() => {
   return `https://github.com/${repo.owner}/${repo.repo}/edit/${repo.branch}/${encodeURIComponent(target).replace(/%2F/g, '/')}`
 })
 
-const canSave = computed(() => {
-  return Boolean(apiReady.value &&
-    user.value.authenticated &&
-    user.value.allowed !== false &&
-    path.value.endsWith('.md') &&
-    content.value.trim())
-})
-
-const docViewUrl = computed(() => {
-  return repoPathToSiteUrl(path.value)
-})
+const docViewUrl = computed(() => repoPathToSiteUrl(path.value))
 
 const editorStats = computed(() => {
   const text = content.value || ''
   const trimmed = text.trim()
+  const plain = text
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/[#>*_\-[\]()`|]/g, ' ')
+    .trim()
 
   return {
     chars: text.length,
     lines: text ? text.split('\n').length : 0,
-    words: trimmed ? trimmed.split(/\s+/).filter(Boolean).length : 0
+    words: plain ? plain.split(/\s+/).filter(Boolean).length : 0,
+    headings: (text.match(/^#{1,6}\s+/gm) || []).length
   }
 })
 
-const previewHtml = computed(() => {
-  return renderMarkdown(content.value)
-})
+const previewHtml = computed(() => renderMarkdown(content.value))
 
 function normalizeSlug(value: string) {
   return String(value || 'new-note')
@@ -126,12 +175,14 @@ function extractFrontmatter(markdown: string) {
   return /^---\s*\n([\s\S]*?)\n---/.exec(markdown)
 }
 
+function stripFrontmatter(markdown: string) {
+  return markdown.replace(/^---\s*\n[\s\S]*?\n---\s*/, '')
+}
+
 function extractFrontmatterTitle(markdown: string) {
   const match = extractFrontmatter(markdown)
 
-  if (!match) {
-    return ''
-  }
+  if (!match) return ''
 
   const titleLine = /^title\s*:\s*(.+)$/m.exec(match[1])
 
@@ -176,54 +227,31 @@ function ensureMarkdownTitle(markdown: string, docTitle: string) {
   return `# ${normalizedTitle}\n\n${markdown.trimStart()}`
 }
 
-function setNotice(message: string) {
-  notice.value = message
-  error.value = ''
-}
+function upsertMarkdownTitle(markdown: string, docTitle: string) {
+  const normalizedTitle = normalizeTitle(docTitle) || '新文档'
+  const frontmatter = extractFrontmatter(markdown)
 
-function setError(message: string) {
-  error.value = message
-  notice.value = ''
-}
+  if (frontmatter) {
+    const nextFrontmatter = /^title\s*:\s*.+$/m.test(frontmatter[1])
+      ? frontmatter[1].replace(/^title\s*:\s*.+$/m, `title: ${formatFrontmatterTitle(normalizedTitle)}`)
+      : `title: ${formatFrontmatterTitle(normalizedTitle)}\n${frontmatter[1]}`
 
-function buildTemplate(force = false) {
-  if (!force && content.value.trim()) {
-    return
+    return markdown.replace(frontmatter[0], `---\n${nextFrontmatter}\n---`)
   }
 
-  const docTitle = title.value.trim() || '新文档'
+  if (/(^|\n)#\s+.+(?=\n|$)/.test(markdown)) {
+    return markdown.replace(/(^|\n)#\s+.+(?=\n|$)/, (_match, prefix) => `${prefix}# ${normalizedTitle}`)
+  }
 
-  content.value = `# ${docTitle}
+  return `# ${normalizedTitle}\n\n${markdown.trimStart()}`
+}
 
-## 背景
+function syncTitleFromContent(markdown: string) {
+  const nextTitle = extractFrontmatterTitle(markdown) || extractFirstHeading(markdown)
 
-这里写清楚这个知识点解决什么问题、通常出现在什么场景。
-
-## 核心概念
-
-- 概念一：
-- 概念二：
-- 概念三：
-
-## 操作流程
-
-1. 准备环境。
-2. 执行关键命令或配置。
-3. 验证结果。
-4. 记录排障点。
-
-## 常用命令
-
-\`\`\`bash
-# 在这里放可直接复制的命令
-\`\`\`
-
-## 排障记录
-
-| 现象 | 原因 | 处理方式 |
-| --- | --- | --- |
-|  |  |  |
-`
+  if (nextTitle && nextTitle !== title.value) {
+    title.value = nextTitle
+  }
 }
 
 function escapeHtml(value: string) {
@@ -239,15 +267,10 @@ function escapeAttr(value: string) {
   return escapeHtml(value).replace(/`/g, '&#96;')
 }
 
-function isSafeAssetUrl(value: string) {
-  return /^(https?:\/\/|\/|\.{1,2}\/|[A-Za-z0-9_.-]+\/)[^\s"'<>]*$/i.test(value)
-}
-
 function renderInlineMarkdown(value: string) {
   const placeholders: string[] = []
-  const assetPattern = '(?:https?:\\/\\/|\\/|\\.{1,2}\\/|[A-Za-z0-9_.-]+\\/)[^\\s)]+'
   const store = (html: string) => {
-    const key = `JUSTINMDTOKEN${placeholders.length}END`
+    const key = `JUSTIN_MD_${placeholders.length}_END`
 
     placeholders.push(html)
     return key
@@ -258,20 +281,10 @@ function renderInlineMarkdown(value: string) {
   source = source.replace(/`([^`]+)`/g, (_match, code) => {
     return store(`<code>${escapeHtml(code)}</code>`)
   })
-  source = source.replace(/<img\s+[^>]*src=["']([^"']+)["'][^>]*>/gi, (match, src) => {
-    if (!isSafeAssetUrl(src)) {
-      return match
-    }
-
-    const altMatch = /alt=["']([^"']*)["']/i.exec(match)
-    const alt = altMatch ? altMatch[1] : ''
-
+  source = source.replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g, (_match, alt, src) => {
     return store(`<img src="${escapeAttr(src)}" alt="${escapeAttr(alt)}" />`)
   })
-  source = source.replace(new RegExp(`!\\[([^\\]]*)\\]\\((${assetPattern})(?:\\s+"[^"]*")?\\)`, 'g'), (_match, alt, src) => {
-    return store(`<img src="${escapeAttr(src)}" alt="${escapeAttr(alt)}" />`)
-  })
-  source = source.replace(new RegExp(`\\[([^\\]]+)\\]\\((${assetPattern}|#[^\\s)]*)\\)`, 'g'), (_match, label, url) => {
+  source = source.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+|\/[^)\s]+|#[^)\s]+)\)/g, (_match, label, url) => {
     const external = /^https?:\/\//.test(url)
     const target = external ? ' target="_blank" rel="noreferrer"' : ''
 
@@ -286,14 +299,10 @@ function renderInlineMarkdown(value: string) {
   html = html.replace(/_([^_]+)_/g, '<em>$1</em>')
 
   placeholders.forEach((placeholder, index) => {
-    html = html.replace(new RegExp(`JUSTINMDTOKEN${index}END`, 'g'), placeholder)
+    html = html.replace(new RegExp(`JUSTIN_MD_${index}_END`, 'g'), placeholder)
   })
 
   return html
-}
-
-function isFenceStart(line: string) {
-  return /^```/.test(line.trim())
 }
 
 function isTableSeparator(line: string) {
@@ -321,7 +330,7 @@ function renderTable(lines: string[]) {
 }
 
 function renderMarkdown(markdown: string) {
-  const lines = markdown.replace(/\r\n/g, '\n').split('\n')
+  const lines = stripFrontmatter(markdown).replace(/\r\n/g, '\n').split('\n')
   const html: string[] = []
   let index = 0
 
@@ -334,18 +343,18 @@ function renderMarkdown(markdown: string) {
       continue
     }
 
-    if (isFenceStart(line)) {
+    if (/^```/.test(trimmed)) {
       const language = trimmed.replace(/^```/, '').trim().split(/\s+/)[0] || 'text'
       const codeLines: string[] = []
 
       index += 1
-      while (index < lines.length && !isFenceStart(lines[index])) {
+      while (index < lines.length && !/^```/.test(lines[index].trim())) {
         codeLines.push(lines[index])
         index += 1
       }
       index += index < lines.length ? 1 : 0
 
-      html.push(`<div class="language-${escapeAttr(language)}"><span class="lang">${escapeHtml(language)}</span><pre><code>${escapeHtml(codeLines.join('\n'))}</code></pre></div>`)
+      html.push(`<div class="doc-editor-preview-code"><span>${escapeHtml(language)}</span><pre><code>${escapeHtml(codeLines.join('\n'))}</code></pre></div>`)
       continue
     }
 
@@ -413,7 +422,7 @@ function renderMarkdown(markdown: string) {
     while (
       index < lines.length &&
       lines[index].trim() &&
-      !isFenceStart(lines[index]) &&
+      !/^```/.test(lines[index].trim()) &&
       !/^(#{1,6})\s+/.test(lines[index].trim()) &&
       !/^>\s?/.test(lines[index].trim()) &&
       !/^[-*+]\s+/.test(lines[index].trim()) &&
@@ -426,7 +435,55 @@ function renderMarkdown(markdown: string) {
     html.push(`<p>${renderInlineMarkdown(paragraph.join(' '))}</p>`)
   }
 
-  return html.join('\n') || '<p class="doc-editor__preview-empty">开始写 Markdown 后，这里会实时显示预览。</p>'
+  return html.join('\n') || '<p class="doc-editor-preview-empty">开始写作后，这里会显示预览。</p>'
+}
+
+function setNotice(message: string) {
+  notice.value = message
+  error.value = ''
+}
+
+function setError(message: string) {
+  error.value = message
+  notice.value = ''
+}
+
+function buildTemplate(force = false) {
+  if (!force && content.value.trim()) return
+
+  const docTitle = title.value.trim() || '新文档'
+
+  content.value = `# ${docTitle}
+
+## 背景
+
+这里写清楚这个知识点解决什么问题、通常出现在什么场景。
+
+## 核心概念
+
+- 概念一：
+- 概念二：
+- 概念三：
+
+## 操作流程
+
+1. 准备环境。
+2. 执行关键命令或配置。
+3. 验证结果。
+4. 记录排障点。
+
+## 常用命令
+
+\`\`\`bash
+# 在这里放可直接复制的命令
+\`\`\`
+
+## 排障记录
+
+| 现象 | 原因 | 处理方式 |
+| --- | --- | --- |
+|  |  |  |
+`
 }
 
 function repoPathToSiteUrl(repoPath: string) {
@@ -449,133 +506,175 @@ function repoPathToSiteUrl(repoPath: string) {
   return withBase(routePath.startsWith('/') ? routePath : `/${routePath}`)
 }
 
-function scheduleRedirectToDoc() {
-  window.clearTimeout(redirectTimer)
-  saveCompleted.value = true
-  redirectTimer = window.setTimeout(() => {
-    window.location.href = docViewUrl.value
-  }, 1800)
-}
-
 function updateCreatePath() {
   path.value = `${categoryPrefix.value}${normalizeSlug(slug.value)}.md`
   sha.value = ''
 }
 
-function syncContentFromMilkdown() {
-  if (milkdownEditor && typeof milkdownEditor.getMarkdown === 'function') {
-    content.value = milkdownEditor.getMarkdown()
+function getSelectionRange() {
+  const editor = editorRef.value
+
+  return {
+    start: editor?.selectionStart ?? content.value.length,
+    end: editor?.selectionEnd ?? content.value.length
   }
 }
 
-async function destroyMilkdownEditor() {
-  if (!milkdownEditor) {
-    return
-  }
+async function focusEditor(position?: number) {
+  await nextTick()
+  const editor = editorRef.value
 
-  const editor = milkdownEditor
-  milkdownEditor = null
-  await Promise.resolve(editor.destroy?.())
+  if (!editor) return
+
+  editor.focus()
+
+  if (typeof position === 'number') {
+    editor.setSelectionRange(position, position)
+  }
 }
 
-async function rebuildMilkdownEditor(markdown = content.value) {
-  if (typeof window === 'undefined') {
-    return
-  }
+function replaceSelection(value: string, cursorOffset = value.length) {
+  const { start, end } = getSelectionRange()
+  const before = content.value.slice(0, start)
+  const after = content.value.slice(end)
 
-  const root = milkdownRoot.value
+  content.value = `${before}${value}${after}`
+  void focusEditor(start + cursorOffset)
+}
 
-  if (!root) {
-    return
-  }
+function wrapSelection(prefix: string, suffix = prefix, placeholder = '内容') {
+  const { start, end } = getSelectionRange()
+  const selected = content.value.slice(start, end) || placeholder
+  const next = `${prefix}${selected}${suffix}`
+  const before = content.value.slice(0, start)
+  const after = content.value.slice(end)
 
-  const currentTicket = ++milkdownTicket
-  milkdownLoading.value = true
-  milkdownError.value = ''
+  content.value = `${before}${next}${after}`
+  void focusEditor(start + prefix.length + selected.length)
+}
 
+function ensureBlockPrefix(start: number) {
+  return start > 0 && !content.value.slice(0, start).endsWith('\n') ? '\n' : ''
+}
+
+function insertBlock(markdown: string, cursorOffset = markdown.length) {
+  const { start } = getSelectionRange()
+  const prefix = ensureBlockPrefix(start)
+  const value = `${prefix}${markdown}${markdown.endsWith('\n') ? '' : '\n'}`
+
+  replaceSelection(value, prefix.length + cursorOffset)
+}
+
+function insertHeading(level: number) {
+  const hashes = '#'.repeat(level)
+  const { start, end } = getSelectionRange()
+  const selected = content.value.slice(start, end).replace(/^#{1,6}\s+/, '') || '标题'
+  const prefix = ensureBlockPrefix(start)
+  const value = `${prefix}${hashes} ${selected}\n`
+
+  replaceSelection(value, prefix.length + hashes.length + 1 + selected.length)
+}
+
+function insertCodeBlock() {
+  const { start, end } = getSelectionRange()
+  const selected = content.value.slice(start, end) || '# 在这里写命令或代码'
+  const prefix = ensureBlockPrefix(start)
+  const value = `${prefix}\`\`\`bash\n${selected}\n\`\`\`\n`
+
+  replaceSelection(value, prefix.length + 8)
+}
+
+function insertTable() {
+  insertBlock('| 字段 | 说明 |\n| --- | --- |\n|  |  |', 30)
+}
+
+function insertQuote() {
+  insertBlock('> 这里写引用或提示', 8)
+}
+
+function insertList() {
+  insertBlock('- 第一项\n- 第二项\n- 第三项', 5)
+}
+
+function openImagePicker() {
+  imageInput.value?.click()
+}
+
+async function insertImageFromFile(file: File) {
   try {
-    await destroyMilkdownEditor()
+    uploadingImage.value = true
+    const url = await uploadImageAsset(file)
+    const alt = normalizeTitle(file.name.replace(/\.[^.]+$/, '')) || '图片'
 
-    if (currentTicket !== milkdownTicket) {
-      return
-    }
-
-    root.innerHTML = ''
-
-    const { Crepe } = await import('@milkdown/crepe')
-    const crepe = new Crepe({
-      root,
-      defaultValue: markdown || '',
-      features: {
-        [Crepe.Feature.TopBar]: true
-      }
-    })
-
-    if (typeof crepe.on === 'function') {
-      crepe.on((listener: any) => {
-        if (typeof listener.markdownUpdated === 'function') {
-          listener.markdownUpdated((_ctx: unknown, nextMarkdown: string) => {
-            content.value = nextMarkdown
-          })
-        }
-
-        if (typeof listener.blur === 'function') {
-          listener.blur(() => {
-            syncContentFromMilkdown()
-          })
-        } else if (typeof listener.updated === 'function') {
-          listener.updated(() => {
-            syncContentFromMilkdown()
-          })
-        }
-      })
-    } else {
-      window.setTimeout(() => {
-        if (currentTicket === milkdownTicket) {
-          syncContentFromMilkdown()
-        }
-      }, 0)
-    }
-
-    milkdownEditor = crepe
-    await crepe.create()
-
-    if (currentTicket !== milkdownTicket) {
-      await Promise.resolve(crepe.destroy?.())
-    }
+    insertBlock(`![${alt}](${url})`, alt.length + 4)
+    setNotice('图片已上传并插入到文档，记得提交文档让引用生效。')
   } catch (err) {
-    milkdownError.value = `Milkdown 编辑器加载失败：${(err as Error).message || '请确认依赖已经安装'}`
+    setError((err as Error).message)
   } finally {
-    if (currentTicket === milkdownTicket) {
-      milkdownLoading.value = false
-    }
+    uploadingImage.value = false
   }
 }
 
-async function refreshMilkdownEditor(markdown = content.value) {
-  if (editorView.value === 'write') {
-    await rebuildMilkdownEditor(markdown)
+async function handleImageSelect(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+
+  input.value = ''
+
+  if (!file) return
+
+  await insertImageFromFile(file)
+}
+
+async function handleEditorPaste(event: ClipboardEvent) {
+  const files = Array.from(event.clipboardData?.files || []).filter(isImageFile)
+
+  if (!files.length) return
+
+  event.preventDefault()
+
+  for (const file of files) {
+    await insertImageFromFile(file)
   }
 }
 
-async function switchEditorView(view: EditorView) {
-  if (editorView.value === 'write') {
-    syncContentFromMilkdown()
-  }
+async function handleEditorDrop(event: DragEvent) {
+  const files = Array.from(event.dataTransfer?.files || []).filter(isImageFile)
 
-  editorView.value = view
+  if (!files.length) return
 
-  if (view === 'write') {
-    await rebuildMilkdownEditor(content.value)
+  event.preventDefault()
+
+  for (const file of files) {
+    await insertImageFromFile(file)
   }
 }
 
-function openImporter() {
-  if (importing.value) {
-    return
+async function uploadImageAsset(file: File) {
+  if (!apiReady.value || !user.value.authenticated || user.value.allowed === false) {
+    throw new Error('请先登录 GitHub 后再上传图片')
   }
 
-  uploadInput.value?.click()
+  if (!isImageFile(file)) {
+    throw new Error('只支持上传 png、jpg、jpeg、webp、gif、svg 图片')
+  }
+
+  if (file.size > maxImageBytes) {
+    throw new Error('单张图片不能超过 4MB，建议压缩后再上传')
+  }
+
+  const dataUrl = await readFileAsDataUrl(file)
+  const contentBase64 = dataUrl.split(',')[1] || ''
+  const result = await requestJson('/api/github/asset', {
+    method: 'PUT',
+    body: JSON.stringify({
+      fileName: file.name,
+      contentType: file.type,
+      contentBase64
+    })
+  })
+
+  return result.publicUrl
 }
 
 function isMarkdownFile(file: File) {
@@ -583,6 +682,11 @@ function isMarkdownFile(file: File) {
     file.type === 'text/markdown' ||
     file.type === 'text/plain' ||
     file.type === ''
+}
+
+function isImageFile(file: File) {
+  return /^image\/(png|jpe?g|webp|gif|svg\+xml)$/i.test(file.type) ||
+    /\.(png|jpe?g|webp|gif|svg)$/i.test(file.name)
 }
 
 function readFileAsText(file: File) {
@@ -597,6 +701,27 @@ function readFileAsText(file: File) {
     reader.onerror = () => reject(new Error('读取本地文件失败'))
     reader.readAsText(file, 'utf-8')
   })
+}
+
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.onerror = () => reject(new Error('读取图片失败'))
+    reader.readAsDataURL(file)
+  })
+}
+
+function openImporter() {
+  if (importing.value) return
+
+  if (!showCreateTools.value) {
+    setNotice('当前正在编辑已有文档。导入 Markdown 只用于新建文档，不会覆盖当前文档。')
+    return
+  }
+
+  markdownInput.value?.click()
 }
 
 async function importMarkdownFile(file: File) {
@@ -620,9 +745,12 @@ async function importMarkdownFile(file: File) {
       normalizeSlug(importedTitle)
 
     mode.value = 'create'
+    hasSourcePath.value = false
     title.value = importedTitle
     slug.value = importedSlug
+    categoryPrefix.value ||= categories[0].prefix
     content.value = ensureMarkdownTitle(rawContent, importedTitle)
+    originalContent.value = ''
     importedFileName.value = file.name
     commitMessage.value = `docs: add ${importedSlug}`
     sha.value = ''
@@ -631,8 +759,8 @@ async function importMarkdownFile(file: File) {
     saveCompleted.value = false
     updateCreatePath()
     sideCollapsed.value = false
-    await switchEditorView('write')
-    setNotice(`已导入 ${file.name}，请选择目录并确认标题后提交。`)
+    setNotice(`已导入 ${file.name}，确认目录、文件名和标题后提交。`)
+    void focusEditor()
   } catch (err) {
     setError((err as Error).message)
   } finally {
@@ -647,20 +775,19 @@ async function handleFileImport(event: Event) {
   input.value = ''
   draggingImport.value = false
 
-  if (!file) {
-    return
-  }
+  if (!file) return
 
   await importMarkdownFile(file)
 }
 
 async function handleImportDrop(event: DragEvent) {
   draggingImport.value = false
+
+  if (!showCreateTools.value) return
+
   const file = event.dataTransfer?.files?.[0]
 
-  if (!file) {
-    return
-  }
+  if (!file) return
 
   await importMarkdownFile(file)
 }
@@ -712,9 +839,7 @@ async function checkLogin() {
 }
 
 async function loadFile() {
-  if (!path.value) {
-    return
-  }
+  if (!path.value || !user.value.authenticated) return
 
   loading.value = true
   setNotice('正在读取 GitHub 文档...')
@@ -722,6 +847,7 @@ async function loadFile() {
   try {
     const file = await requestJson(`/api/github/file?path=${encodeURIComponent(path.value)}`)
     content.value = file.content || ''
+    originalContent.value = content.value
     sha.value = file.sha || ''
     loadedPath.value = path.value
     mode.value = file.exists ? 'edit' : 'create'
@@ -730,10 +856,11 @@ async function loadFile() {
 
     if (!file.exists && !content.value) {
       buildTemplate(true)
+      originalContent.value = content.value
     }
 
-    await refreshMilkdownEditor(content.value)
     setNotice(file.exists ? '文档已载入，可以编辑。' : '这是新文档，保存后会创建到仓库。')
+    void focusEditor()
   } catch (err) {
     setError((err as Error).message)
   } finally {
@@ -742,7 +869,7 @@ async function loadFile() {
 }
 
 async function saveFile() {
-  syncContentFromMilkdown()
+  syncTitleFromContent(content.value)
 
   if (!canSave.value) {
     setError('请先登录 GitHub，并确认路径和内容不为空。')
@@ -769,6 +896,9 @@ async function saveFile() {
     loadedPath.value = path.value
     lastCommitUrl.value = result.commitUrl || ''
     mode.value = 'edit'
+    hasSourcePath.value = true
+    originalContent.value = content.value
+    clearDraft()
     setNotice('提交成功，正在返回文档页。新文档需要等待 Vercel 重新构建后才会显示最新内容。')
     scheduleRedirectToDoc()
   } catch (err) {
@@ -778,7 +908,18 @@ async function saveFile() {
   }
 }
 
+function scheduleRedirectToDoc() {
+  window.clearTimeout(redirectTimer)
+  saveCompleted.value = true
+  redirectTimer = window.setTimeout(() => {
+    window.location.href = docViewUrl.value
+  }, 1600)
+}
+
 function login() {
+  syncTitleFromContent(content.value)
+  saveDraftNow()
+
   const returnTo = `${window.location.pathname}${window.location.search}`
 
   window.location.href = `/api/github/oauth/start?returnTo=${encodeURIComponent(returnTo)}`
@@ -790,38 +931,144 @@ async function logout() {
   setNotice('已退出 GitHub 登录。')
 }
 
-function switchToCreate() {
+function applyTitleChange() {
+  const nextTitle = normalizeTitle(title.value) || '新文档'
+
+  title.value = nextTitle
+  content.value = upsertMarkdownTitle(content.value, nextTitle)
+
+  if (mode.value === 'create' && slug.value === 'new-note') {
+    slug.value = normalizeSlug(nextTitle)
+  }
+
+  void focusEditor()
+}
+
+function switchToCreate(restoreDraft = false) {
   mode.value = 'create'
+  hasSourcePath.value = false
   importedFileName.value = ''
+  sha.value = ''
+  loadedPath.value = ''
+  lastCommitUrl.value = ''
+  saveCompleted.value = false
+  previewOpen.value = false
+  sideCollapsed.value = false
+
+  if (restoreDraft && restoreDraftState()) {
+    updateCreatePath()
+    setNotice('已恢复上次未提交的新建文档草稿。')
+    void focusEditor()
+    return
+  }
+
+  title.value = '新文档'
+  slug.value = 'new-note'
+  categoryPrefix.value = categories[0].prefix
   updateCreatePath()
   buildTemplate(true)
+  originalContent.value = content.value
   commitMessage.value = `docs: add ${normalizeSlug(slug.value)}`
-  void refreshMilkdownEditor(content.value)
+  void focusEditor()
+}
+
+function startNewDocument() {
+  switchToCreate(false)
+  clearDraft()
+  setNotice('已切换到新建文档，选择目录和文件名后即可提交。')
+}
+
+function restoreDraftState() {
+  if (typeof window === 'undefined') return false
+
+  try {
+    const raw = window.localStorage.getItem(draftKey)
+    const draft = raw ? JSON.parse(raw) as Partial<DraftPayload> : null
+
+    if (!draft?.content?.trim()) return false
+
+    title.value = draft.title || resolveImportedTitle(draft.content, draft.slug || '新文档.md')
+    slug.value = normalizeSlug(draft.slug || title.value)
+    categoryPrefix.value = categories.some((item) => item.prefix === draft.categoryPrefix)
+      ? String(draft.categoryPrefix)
+      : categories[0].prefix
+    content.value = draft.content
+    originalContent.value = ''
+    commitMessage.value = draft.commitMessage || `docs: add ${normalizeSlug(slug.value)}`
+    importedFileName.value = draft.importedFileName || ''
+    return true
+  } catch {
+    return false
+  }
+}
+
+function saveDraftNow() {
+  if (typeof window === 'undefined' || mode.value !== 'create' || saveCompleted.value) return
+
+  const payload: DraftPayload = {
+    title: title.value,
+    slug: slug.value,
+    categoryPrefix: categoryPrefix.value,
+    content: content.value,
+    commitMessage: commitMessage.value,
+    importedFileName: importedFileName.value
+  }
+
+  window.localStorage.setItem(draftKey, JSON.stringify(payload))
+}
+
+function scheduleDraftSave() {
+  if (!draftReady.value || mode.value !== 'create' || saveCompleted.value) return
+
+  window.clearTimeout(draftTimer)
+  draftTimer = window.setTimeout(saveDraftNow, 450)
+}
+
+function clearDraft() {
+  if (typeof window !== 'undefined') {
+    window.localStorage.removeItem(draftKey)
+  }
 }
 
 onMounted(async () => {
   const search = new URLSearchParams(window.location.search)
   const sourcePath = search.get('path')
+  const wantsImport = search.get('import') === '1'
 
   if (sourcePath) {
-    path.value = decodeURIComponent(sourcePath)
+    path.value = sourcePath
+    hasSourcePath.value = true
     mode.value = 'edit'
+    sideCollapsed.value = true
+    title.value = resolveImportedTitle('', path.value.split('/').pop() || '文档.md')
+    originalContent.value = ''
   } else {
-    switchToCreate()
+    switchToCreate(true)
   }
 
   await checkLogin()
 
-  if (user.value.authenticated && path.value) {
-    await loadFile()
+  if (hasSourcePath.value && path.value) {
+    if (user.value.authenticated) {
+      await loadFile()
+    } else {
+      setNotice('登录 GitHub 后会自动读取当前文档内容。')
+    }
+  } else {
+    void focusEditor()
   }
 
-  await refreshMilkdownEditor(content.value)
+  if (wantsImport && !hasSourcePath.value) {
+    sideCollapsed.value = false
+    setNotice('请选择本地 Markdown 文件，确认目录和标题后提交。')
+  }
+
+  draftReady.value = true
 })
 
 onBeforeUnmount(() => {
   window.clearTimeout(redirectTimer)
-  void destroyMilkdownEditor()
+  window.clearTimeout(draftTimer)
 })
 
 watch([categoryPrefix, slug], () => {
@@ -831,39 +1078,49 @@ watch([categoryPrefix, slug], () => {
   }
 })
 
-watch(path, (nextPath) => {
-  if (nextPath !== loadedPath.value) {
-    sha.value = ''
-    lastCommitUrl.value = ''
+watch(content, (nextContent) => {
+  syncTitleFromContent(nextContent)
+
+  if (nextContent !== originalContent.value) {
     saveCompleted.value = false
   }
+
+  scheduleDraftSave()
 })
+
+watch([title, categoryPrefix, slug, commitMessage, importedFileName], scheduleDraftSave)
 </script>
 
 <template>
   <main class="doc-editor">
     <input
-      ref="uploadInput"
+      ref="markdownInput"
       class="doc-editor__file-input"
       type="file"
       accept=".md,.markdown,.mdown,text/markdown,text/plain"
       @change="handleFileImport"
+    />
+    <input
+      ref="imageInput"
+      class="doc-editor__file-input"
+      type="file"
+      accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+      @change="handleImageSelect"
     />
 
     <header class="doc-editor__topbar">
       <div class="doc-editor__doc-info">
         <a :href="withBase('/')" class="doc-editor__brand">Justin Docs</a>
         <span class="doc-editor__divider"></span>
+        <span class="doc-editor__entry">{{ entryLabel }}</span>
         <input
           v-model="title"
           class="doc-editor__title-input"
           type="text"
           placeholder="未命名文档"
-          @change="buildTemplate()"
+          @change="applyTitleChange"
         />
-        <span class="doc-editor__sync-state">
-          {{ saving ? '保存中' : saveCompleted ? '已提交' : milkdownLoading ? '加载中' : '编辑中' }}
-        </span>
+        <span class="doc-editor__sync-state">{{ statusText }}</span>
       </div>
 
       <div class="doc-editor__top-actions">
@@ -877,7 +1134,7 @@ watch(path, (nextPath) => {
         <button v-else type="button" class="ghost" :disabled="!apiReady" @click="login">
           GitHub 登录
         </button>
-        <button type="button" class="ghost" :disabled="importing" @click="openImporter">
+        <button v-if="showCreateTools" type="button" class="ghost" :disabled="importing" @click="openImporter">
           导入
         </button>
         <button type="button" class="ghost" @click="sideCollapsed = !sideCollapsed">
@@ -899,47 +1156,29 @@ watch(path, (nextPath) => {
     </section>
 
     <section :class="['doc-editor__shell', { 'side-collapsed': sideCollapsed }]">
-      <aside class="doc-editor__rail" aria-label="编辑器快捷操作">
-        <button type="button" title="新建文档" @click="switchToCreate">+</button>
-        <button type="button" title="导入 Markdown" :disabled="importing" @click="openImporter">↥</button>
-        <button type="button" title="读取文档" :disabled="loading || !user.authenticated" @click="loadFile">↻</button>
+      <aside class="doc-editor__rail" aria-label="写作快捷操作">
+        <a :href="withBase('/')" title="返回首页">⌂</a>
+        <button type="button" class="doc-editor__rail-primary" title="新建文档" @click="startNewDocument">+</button>
+        <button v-if="showCreateTools" type="button" title="导入 Markdown" :disabled="importing" @click="openImporter">
+          ↥
+        </button>
+        <button type="button" title="上传图片" :disabled="uploadingImage" @click="openImagePicker">图</button>
         <button type="button" title="文档设置" @click="sideCollapsed = !sideCollapsed">☰</button>
         <a :href="githubEditUrl" title="GitHub 网页编辑" target="_blank" rel="noreferrer">GH</a>
       </aside>
 
-      <aside v-show="!sideCollapsed" :class="['doc-editor__side', { collapsed: sideCollapsed }]">
+      <aside v-show="!sideCollapsed" class="doc-editor__side">
         <div class="doc-editor__side-panel">
           <div class="doc-editor__side-head">
             <strong>文档设置</strong>
             <button type="button" @click="sideCollapsed = true">收起</button>
           </div>
 
-          <div class="doc-editor__mode">
-            <button type="button" :class="{ active: mode === 'edit' }" @click="mode = 'edit'">编辑</button>
-            <button type="button" :class="{ active: mode === 'create' }" @click="switchToCreate">新建</button>
+          <div class="doc-editor__entry-card">
+            <span>{{ entryLabel }}</span>
+            <strong>{{ isEditingCurrentDoc ? path : currentCategory }}</strong>
+            <p>{{ entryDescription }}</p>
           </div>
-
-          <div
-            :class="['doc-editor__import', { dragging: draggingImport }]"
-            @dragenter.prevent="draggingImport = true"
-            @dragover.prevent="draggingImport = true"
-            @dragleave.prevent="draggingImport = false"
-            @drop.prevent="handleImportDrop"
-          >
-            <div>
-              <strong>导入 Markdown</strong>
-              <span v-if="importedFileName">{{ importedFileName }}</span>
-              <span v-else>选择本地 .md 文件</span>
-            </div>
-            <button type="button" :disabled="importing" @click="openImporter">
-              {{ importing ? '导入中...' : '选择文件' }}
-            </button>
-          </div>
-
-          <label>
-            <span>文档路径</span>
-            <input v-model="path" type="text" :readonly="mode === 'create'" />
-          </label>
 
           <template v-if="mode === 'create'">
             <label>
@@ -955,12 +1194,30 @@ watch(path, (nextPath) => {
               <span>文件名</span>
               <input v-model="slug" type="text" placeholder="linux-network-note" />
             </label>
-
-            <label>
-              <span>标题</span>
-              <input v-model="title" type="text" @change="buildTemplate()" />
-            </label>
           </template>
+
+          <label>
+            <span>文档路径</span>
+            <input v-model="path" type="text" readonly />
+          </label>
+
+          <div
+            v-if="showCreateTools"
+            :class="['doc-editor__import', { dragging: draggingImport }]"
+            @dragenter.prevent="draggingImport = true"
+            @dragover.prevent="draggingImport = true"
+            @dragleave.prevent="draggingImport = false"
+            @drop.prevent="handleImportDrop"
+          >
+            <div>
+              <strong>导入 Markdown</strong>
+              <span v-if="importedFileName">{{ importedFileName }}</span>
+              <span v-else>选择或拖入本地 .md 文件</span>
+            </div>
+            <button type="button" :disabled="importing" @click="openImporter">
+              {{ importing ? '导入中...' : '选择文件' }}
+            </button>
+          </div>
 
           <details class="doc-editor__advanced">
             <summary>提交设置</summary>
@@ -971,8 +1228,8 @@ watch(path, (nextPath) => {
           </details>
 
           <div class="doc-editor__side-actions">
-            <button type="button" :disabled="loading || !user.authenticated" @click="loadFile">
-              读取
+            <button v-if="isEditingCurrentDoc" type="button" :disabled="loading || !user.authenticated" @click="loadFile">
+              重新读取
             </button>
             <button type="button" class="primary" :disabled="saving || !canSave" @click="saveFile">
               {{ saving ? '提交中...' : '提交' }}
@@ -987,50 +1244,25 @@ watch(path, (nextPath) => {
 
       <section class="doc-editor__main">
         <div class="doc-editor__toolbar">
-          <div class="doc-editor__view-tabs" aria-label="编辑视图">
-            <button
-              type="button"
-              :class="{ active: editorView === 'write' }"
-              @click="switchEditorView('write')"
-            >
-              写作
-            </button>
-            <button
-              type="button"
-              :class="{ active: editorView === 'edit' }"
-              @click="switchEditorView('edit')"
-            >
-              编辑
-            </button>
-            <button
-              type="button"
-              :class="{ active: editorView === 'split' }"
-              @click="switchEditorView('split')"
-            >
-              分屏
-            </button>
-            <button
-              type="button"
-              :class="{ active: editorView === 'preview' }"
-              @click="switchEditorView('preview')"
-            >
-              预览
-            </button>
+          <div class="doc-editor__formatbar" aria-label="Markdown 工具栏">
+            <button type="button" title="一级标题" @click="insertHeading(1)">H1</button>
+            <button type="button" title="二级标题" @click="insertHeading(2)">H2</button>
+            <button type="button" title="加粗" @click="wrapSelection('**', '**', '重点内容')">B</button>
+            <button type="button" title="行内代码" @click="wrapSelection('`', '`', 'code')">`</button>
+            <button type="button" title="代码块" @click="insertCodeBlock">代码</button>
+            <button type="button" title="表格" @click="insertTable">表格</button>
+            <button type="button" title="引用" @click="insertQuote">引用</button>
+            <button type="button" title="列表" @click="insertList">列表</button>
+            <button type="button" title="图片" :disabled="uploadingImage" @click="openImagePicker">图片</button>
           </div>
           <div class="doc-editor__toolbar-actions">
-            <button
-              type="button"
-              :disabled="editorView !== 'split'"
-              @click="previewFirst = !previewFirst"
-            >
-              交换
-            </button>
-            <button type="button" @click="sideCollapsed = !sideCollapsed">
-              {{ sideCollapsed ? '设置' : '收起' }}
+            <button type="button" class="ghost" @click="previewOpen = !previewOpen">
+              {{ previewOpen ? '关闭预览' : '预览' }}
             </button>
             <div class="doc-editor__quick-stats">
               <span>{{ editorStats.chars }} 字符</span>
               <span>{{ editorStats.lines }} 行</span>
+              <span>{{ editorStats.headings }} 标题</span>
             </div>
           </div>
         </div>
@@ -1045,40 +1277,47 @@ watch(path, (nextPath) => {
           <a :href="docViewUrl">立即查看文档</a>
         </div>
 
-        <div :class="['doc-editor__workspace', `is-${editorView}`, { 'preview-first': previewFirst }]">
-          <section
-            v-show="editorView === 'write'"
-            class="doc-editor__milkdown"
-            @keydown.ctrl.s.prevent="saveFile"
-            @keydown.meta.s.prevent="saveFile"
-          >
-            <div v-if="milkdownLoading" class="doc-editor__milkdown-state">
-              正在加载写作编辑器...
+        <div v-if="needsLoginToLoad" class="doc-editor__login-panel">
+          <strong>登录后编辑当前文档</strong>
+          <span>{{ path }}</span>
+          <button type="button" class="primary" :disabled="!apiReady" @click="login">
+            GitHub 登录
+          </button>
+        </div>
+
+        <div v-else :class="['doc-editor__workspace', { 'has-preview': previewOpen }]">
+          <section class="doc-editor__writer">
+            <textarea
+              ref="editorRef"
+              v-model="content"
+              class="doc-editor__textarea"
+              spellcheck="false"
+              placeholder="在这里写 Markdown 文档。可以粘贴图片、拖入图片，或用左侧导入本地 Markdown。"
+              @blur="syncTitleFromContent(content)"
+              @drop="handleEditorDrop"
+              @paste="handleEditorPaste"
+              @keydown.ctrl.s.prevent="saveFile"
+              @keydown.meta.s.prevent="saveFile"
+            />
+            <div class="doc-editor__drop-hint">
+              Markdown 源文档会直接写入 GitHub。图片上传会先生成静态资源路径，提交文档后线上生效。
             </div>
-            <div v-if="milkdownError" class="doc-editor__milkdown-error">
-              <span>{{ milkdownError }}</span>
-              <button type="button" @click="rebuildMilkdownEditor(content)">重试</button>
-            </div>
-            <div ref="milkdownRoot" class="doc-editor__milkdown-root" />
           </section>
-          <textarea
-            v-show="editorView === 'edit' || editorView === 'split'"
-            v-model="content"
-            spellcheck="false"
-            placeholder="在这里写 Markdown 文档..."
-          />
-          <article
-            v-show="editorView === 'split' || editorView === 'preview'"
-            class="doc-editor__preview vp-doc"
-            v-html="previewHtml"
-          />
+
+          <aside v-show="previewOpen" class="doc-editor__preview-panel">
+            <div class="doc-editor__preview-head">
+              <strong>预览</strong>
+              <button type="button" @click="previewOpen = false">关闭</button>
+            </div>
+            <article class="doc-editor__preview-body" v-html="previewHtml"></article>
+          </aside>
         </div>
 
         <div class="doc-editor__footer">
           <span>{{ editorStats.words }} 词段</span>
           <a v-if="lastCommitUrl" :href="lastCommitUrl" target="_blank" rel="noreferrer">查看提交</a>
           <a :href="docViewUrl">查看当前文档</a>
-          <a :href="withBase('/')" target="_blank">返回首页</a>
+          <a :href="withBase('/')">返回首页</a>
         </div>
       </section>
     </section>

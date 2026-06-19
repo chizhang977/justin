@@ -73,8 +73,7 @@ const flow = [
 
         <div class="hw-actions">
           <a class="hw-button primary" :href="withBase('/docs/linux/linux/')">从 Linux 开始</a>
-          <a class="hw-button" :href="withBase('/docs/db/mysql/')">进入 MySQL</a>
-          <a class="hw-button ghost" :href="withBase('/write')">在线写文档</a>
+          <a class="hw-button" :href="withBase('/write')">新建文档</a>
         </div>
 
         <div class="hw-stats" aria-label="文档统计">
