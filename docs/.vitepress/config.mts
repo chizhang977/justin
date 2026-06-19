@@ -87,7 +87,7 @@ export default defineConfig({
     logo: '/logo.svg',
     siteTitle: 'Justin Docs',
     outline: {
-      level: [2, 3],
+      level: [2, 4],
       label: '本文目录'
     },
     search: {

@@ -7,6 +7,7 @@ import ThemePalette from './components/ThemePalette.vue'
 import DocReadingMeta from './components/DocReadingMeta.vue'
 import DocBottomOutline from './components/DocBottomOutline.vue'
 import CodeCopyEnhancer from './components/CodeCopyEnhancer.vue'
+import SidebarActiveHeadings from './components/SidebarActiveHeadings.vue'
 import ReadingProgress from './components/ReadingProgress.vue'
 import './style.css'
 
@@ -17,7 +18,10 @@ export default {
     'nav-bar-content-after': () => h(ThemePalette),
     'doc-before': () => h(DocReadingMeta),
     'doc-after': () => h(DocBottomOutline),
-    'layout-bottom': () => h(CodeCopyEnhancer)
+    'layout-bottom': () => [
+      h(CodeCopyEnhancer),
+      h(SidebarActiveHeadings)
+    ]
   }),
   enhanceApp({ app }) {
     app.component('HomeWorkbench', HomeWorkbench)
