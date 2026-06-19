@@ -8,6 +8,8 @@ node_modules
 
 # vuepress
 docs/.vuepress/dist
+docs/.vitepress/cache
+docs/.vitepress/dist
 
 # 百度链接推送
 urls.txt

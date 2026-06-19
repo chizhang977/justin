@@ -61,31 +61,31 @@ docker-compose stop      # 停止服务
 Yaml
 
 ```yaml
-1version: '3' # Compose文件版本
-2
-3services:
-4  web:
-5    image: nginx:latest
-6    ports:
-7      - "80:80"
-8    networks:
-9      - mynetwork
-10    depends_on:
-11      - db
-12  db:
-13    image: mysql:5.7
-14    environment:
-15      MYSQL_ROOT_PASSWORD: example
-16    volumes:
-17      - db_data:/var/lib/mysql
-18    networks:
-19      - mynetwork
-20
-21networks:
-22  mynetwork:
-23
-24volumes:
-25  db_data:
+version: '3' # Compose文件版本
+
+services:
+  web:
+    image: nginx:latest
+    ports:
+      - "80:80"
+    networks:
+      - mynetwork
+    depends_on:
+      - db
+  db:
+    image: mysql:5.7
+    environment:
+      MYSQL_ROOT_PASSWORD: example
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - mynetwork
+
+networks:
+  mynetwork:
+
+volumes:
+  db_data:
 ```
 
 - `version`: 指定Compose文件格式版本。

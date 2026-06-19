@@ -1,124 +1,138 @@
 import { defineConfig } from 'vitepress'
-import  navbar  from './nav.ts'
-import  sidebar  from './sidebar.ts'
-export default defineConfig({
+import navbar from './nav'
+import sidebar from './sidebar'
 
-  
-  base: '/justin/',
-  lang: 'en-US',
-  title: "成的技术航行记",
-  description: "全栈深入探索",
+const isVercel = process.env.VERCEL === '1'
+const base = process.env.VITEPRESS_BASE ?? (isVercel ? '/' : '/justin/')
+const siteUrl = isVercel && process.env.VERCEL_URL
+  ? `https://${process.env.VERCEL_URL}`
+  : 'https://chizhang977.github.io/justin/'
+
+const withBase = (path: string) => `${base}${path.replace(/^\//, '')}`
+
+function stripCopiedLineNumbers(code: string) {
+  const lines = code.split(/\r?\n/)
+  const hasTrailingLine = lines.length > 0 && lines[lines.length - 1] === ''
+  const checkLines = hasTrailingLine ? lines.slice(0, -1) : lines
+
+  if (checkLines.length < 3) {
+    return code
+  }
+
+  const numbered = checkLines.every((line, index) => {
+    const expected = String(index + 1)
+    const looksLikeMarkdownList = line.startsWith(`${expected}.`) ||
+      line.startsWith(`${expected})`) ||
+      line.startsWith(`${expected}、`)
+
+    return !looksLikeMarkdownList && (line === expected || line.startsWith(expected))
+  })
+
+  if (!numbered) {
+    return code
+  }
+
+  const cleaned = checkLines.map((line, index) => {
+    const prefixLength = String(index + 1).length
+
+    return line.slice(prefixLength).replace(/^\s?/, '')
+  })
+
+  return `${cleaned.join('\n')}${hasTrailingLine ? '\n' : ''}`
+}
+
+export default defineConfig({
+  base,
+  srcDir: './src',
+  lang: 'zh-CN',
+  title: 'Justin 技术文档库',
+  description: '面向求职与生产实践的个人技术文档库',
+  appearance: false,
+  lastUpdated: true,
+
   head: [
-    ['link', { rel: 'icon', href: '/justin/favicon.ico' }],
-    ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
+    ['link', { rel: 'icon', href: withBase('/favicon.ico') }],
+    ['meta', { name: 'theme-color', content: '#0f766e' }],
+    ['meta', { name: 'author', content: 'chizhang977' }],
+    [
+      'script',
+      {},
+      `;(() => {
+        const mode = localStorage.getItem('justin-docs-mode-v2') || 'dark'
+        const accent = localStorage.getItem('justin-docs-accent-v2') || 'blue'
+        document.documentElement.classList.toggle('dark', mode === 'dark')
+        document.documentElement.dataset.accent = accent
+      })()`
+    ]
   ],
 
-  vite: {
-    // Vite 配置选项
-  },
-
-  // markdown配置
   markdown: {
-    
+    lineNumbers: false,
+    config(md) {
+      md.core.ruler.after('block', 'strip_copied_line_numbers', (state) => {
+        for (const token of state.tokens) {
+          if (token.type === 'fence') {
+            token.content = stripCopiedLineNumbers(token.content)
+          }
+        }
+      })
+    }
   },
 
-  vue: {
-    // @vitejs/plugin-vue 选项
+  sitemap: {
+    hostname: siteUrl
   },
-  
 
-  srcDir: './src',
-  
-
-
-  // appearance: 'dark',
-  lastUpdated: true,
-  themeConfig: { 
-    //广告   
-    // carbonAds: {
-    //   code: 'your-carbon-code',
-    //   placement: 'your-carbon-placement'
-    // },
-
-
+  themeConfig: {
     logo: '/logo.svg',
-    // siteTitle: 'Hello World',
-
-    outline: [2, 3],
+    siteTitle: 'Justin Docs',
+    outline: {
+      level: [2, 3],
+      label: '本文目录'
+    },
     search: {
-      provider: 'algolia',
+      provider: 'local',
       options: {
-        appId: 'M76P006WN9',
-        apiKey: '1fba107fbb7466d2a727b756d563e366',
-        indexName: 'chizhang977io'
+        translations: {
+          button: {
+            buttonText: '搜索文档',
+            buttonAriaLabel: '搜索文档'
+          },
+          modal: {
+            noResultsText: '没有找到相关内容',
+            resetButtonTitle: '清除查询',
+            footer: {
+              selectText: '选择',
+              navigateText: '切换',
+              closeText: '关闭'
+            }
+          }
+        }
       }
     },
-    // search: {
-    //   provider: 'local',
-    //   options: {
-    //     locales: {
-    //       zh: {
-    //         translations: {
-    //           button: {
-    //             buttonText: '搜索文档',
-    //             buttonAriaLabel: '搜索文档'
-    //           },
-    //           modal: {
-    //             noResultsText: '无法找到相关结果',
-    //             resetButtonTitle: '清除查询条件',
-    //             footer: {
-    //               selectText: '选择',
-    //               navigateText: '切换'
-    //             }
-    //           }
-    //         }
-    //       }
-    //     }
-    //   }
-    // },
-
     lastUpdated: {
-      text: '最后更新于',
+      text: '最后更新',
       formatOptions: {
         dateStyle: 'short',
         timeStyle: 'medium'
       }
     },
-    
+    docFooter: {
+      prev: '上一篇',
+      next: '下一篇'
+    },
     nav: navbar,
-    sidebar: sidebar,
+    sidebar,
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/chizhang977' },
-      {
-        icon: {
-          svg: '<svg t="1715074198762" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="5234" width="200" height="200"><path d="M512 1024C229.234 1024 0 794.766 0 512S229.234 0 512 0s512 229.234 512 512-229.234 512-512 512z m259.157-568.889l-290.759 0.014c-13.966 0-25.287 11.321-25.287 25.273l-0.028 63.218c0 13.966 11.306 25.287 25.273 25.287H657.38c13.966 0 25.287 11.307 25.287 25.273v12.644a75.847 75.847 0 0 1-75.847 75.847H366.606a25.287 25.287 0 0 1-25.287-25.273v-240.2a75.847 75.847 0 0 1 75.847-75.846l353.92-0.015c13.966 0 25.273-11.306 25.287-25.273l0.071-63.189c0-13.966-11.306-25.287-25.272-25.301l-353.992 0.014c-104.718-0.014-189.624 84.892-189.624 189.61v353.963c0 13.967 11.32 25.287 25.287 25.287h372.935c94.265 0 170.666-76.401 170.666-170.666v-145.38c0-13.952-11.32-25.273-25.287-25.273z" p-id="5235"></path></svg>'
-        },
-        link: 'https://gitee.com/boycheng',
-        // 也可以为无障碍添加一个自定义标签 (可选但推荐):
-        ariaLabel: 'cool link'
-      },
-      {
-        icon: {
-          svg: '<svg t="1718851684370" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="8898" width="200" height="200"><path d="M531.136 430.848c-48.448 0-89.728 17.088-123.84 51.2s-51.2 75.392-51.2 123.84c0 48.384 17.088 89.6 51.2 123.776s75.392 51.264 123.84 51.264c48.384 0 89.664-17.152 123.84-51.264s51.2-75.392 51.2-123.776-17.088-89.664-51.2-123.84-75.456-51.2-123.84-51.2zM512 0C229.248 0 0 229.248 0 512c0 282.688 229.248 512 512 512s512-229.248 512-512S794.752 0 512 0z m192.384 779.136c-47.872 47.872-105.6 71.744-173.248 71.744-67.712 0-125.44-23.872-173.248-71.744-47.872-47.872-71.744-105.6-71.744-173.248V185.024c0-9.6 3.392-17.856 10.24-24.704s15.104-10.304 24.704-10.304 17.856 3.456 24.768 10.304c6.848 6.848 10.24 15.104 10.24 24.704v249.344l1.792-1.728c47.808-47.872 105.536-71.744 173.248-71.744 67.648 0 125.376 23.936 173.248 71.744 47.808 47.872 71.744 105.6 71.744 173.248 0 67.584-23.936 125.376-71.744 173.248z" p-id="8899"></path></svg>'
-        },
-        link: 'https://rare-vulture-truly.ngrok-free.app/',
-        // 也可以为无障碍添加一个自定义标签 (可选但推荐):
-        ariaLabel: 'cool link'
-      },
-      
-      
+      { icon: 'github', link: 'https://github.com/chizhang977' }
     ],
     footer: {
-      message: 'Released under the MIT License.',
+      message: '以工程实践沉淀知识，以文档复盘成长。',
       copyright: 'Copyright © 2024-present chizhang977'
     },
     editLink: {
-      pattern: 'https://github.com/chizhang977/justin/tree/master/docs/src/:path',
-      text: '😁我要纠错'
-    },
-    sitemap: {
-      hostname: 'https://chizhang977.github.io/justin/'
-    },
-    
+      pattern: 'https://github.com/chizhang977/justin/edit/master/docs/src/:path',
+      text: '在 GitHub 上编辑此页'
+    }
   }
 })
