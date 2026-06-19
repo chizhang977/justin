@@ -138,6 +138,7 @@ const sidebar: DefaultTheme.Sidebar = {
   '/docs/devops/': [
     group('部署发布', [
       { text: 'VitePress 部署', link: '/docs/devops/deploy/vitepress-github-vercel' },
+      { text: 'EdgeOne Pages', link: '/docs/devops/deploy/edgeone-pages' },
       { text: '在线写作配置', link: '/docs/devops/deploy/online-editor-vercel-github' }
     ]),
     group('CI/CD', [

@@ -4,9 +4,9 @@ import sidebar from './sidebar'
 
 const isVercel = process.env.VERCEL === '1'
 const base = process.env.VITEPRESS_BASE ?? (isVercel ? '/' : '/justin/')
-const siteUrl = isVercel && process.env.VERCEL_URL
+const siteUrl = process.env.VITEPRESS_SITE_URL ?? (isVercel && process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
-  : 'https://chizhang977.github.io/justin/'
+  : 'https://chizhang977.github.io/justin/')
 
 const withBase = (path: string) => `${base}${path.replace(/^\//, '')}`
 
