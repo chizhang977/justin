@@ -7,7 +7,7 @@
 ## 在线访问
 
 - GitHub Pages：[https://chizhang977.github.io/justin/](https://chizhang977.github.io/justin/)
-- Vercel：部署后填写你的 Production 域名，例如 `https://your-project.vercel.app`
+- Vercel：[justin vercel](https://justin-red.vercel.app)部署后填写你的 Production 域名，例如 `https://your-project.vercel.app`
 
 GitHub Pages 适合作为静态访问地址；Vercel 用来承载完整功能，尤其是在线编辑文档需要依赖 Vercel Serverless API。
 
