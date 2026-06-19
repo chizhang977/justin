@@ -1,42 +1,279 @@
-# [justin docs]：探索技术与思考的轨迹
-欢迎来到我的数字领地，这里不仅仅是一个技术分享的平台，更是我记录成长、交流心得的港湾。我致力于将我在软件开发、技术创新以及个人成长方面的所学、所思、所得，以深入浅出的方式呈现给每一位访问者。
+# Justin Docs
 
-## 访问博客
-官方网站: [点击访问](https://chizhang977.github.io/justin/)
+一个基于 VitePress 构建的个人技术文档库，用来沉淀 Linux、Java、MySQL、Redis、Docker、Kubernetes、Nginx、Jenkins、前端工程和部署实践。
 
-在这里，您将发现一系列精心编排的文章，涵盖从基础编程技巧到前沿技术趋势的广泛话题。
+这个站点不是单纯的博客首页，而是面向长期学习、复习、求职准备和生产实践的工程笔记库。内容会尽量按照“概念 -> 原理 -> 操作流程 -> 常用命令 -> 排障记录”的方式整理，方便以后持续补充。
 
-## 技术栈亮点
-- vitepress：作为博客的基石，VuePress 提供了极致的性能与灵活性，确保内容加载迅速且交互流畅。
-- Vue.js：利用 Vue.js 构建动态功能和组件，为读者带来更加丰富的阅读体验。
-- Markdown：采用简洁高效的 Markdown 语法编写文章，保证内容的可读性和可维护性。
-- GitHub Pages：借助 GitHub Pages 实现免费且可靠的静态页面托管，全球访问无阻。
-- CI/CD (持续集成与部署)：通过自动化的构建与部署流程，确保每次更新都能无缝推送给读者，提升发布效率。
-## 本地开发指南
-想亲自体验或贡献内容？请遵循以下步骤搭建本地开发环境：
+## 在线访问
 
-## 克隆项目：
-```bash
-git clone git@github.com:chizhang977/justin.git
+- GitHub Pages：[https://chizhang977.github.io/justin/](https://chizhang977.github.io/justin/)
+- Vercel：部署后填写你的 Production 域名，例如 `https://your-project.vercel.app`
+
+GitHub Pages 适合作为静态访问地址；Vercel 用来承载完整功能，尤其是在线编辑文档需要依赖 Vercel Serverless API。
+
+## 项目定位
+
+这个仓库主要做三件事：
+
+- 记录个人技术学习路线和知识点。
+- 整理后端、数据库、Linux、容器、DevOps 等工程实践。
+- 提供一个可长期维护的个人技术文档站，后续可以扩展成完整知识库。
+
+## 内容方向
+
+| 分类 | 内容 |
+| --- | --- |
+| Linux | 文件目录、用户权限、进程服务、日志、网络排障、磁盘挂载、软件包管理 |
+| Java | Java 基础、新特性、反射、Spring Boot、工程设计 |
+| MySQL | SQL 基础、条件过滤、分组分页、索引、慢查询、主从复制、备份恢复 |
+| Redis | 缓存、分布式缓存、集群、OpenResty、Canal |
+| Docker | 镜像、容器、网络、数据卷、Dockerfile、Compose、生产部署 |
+| Kubernetes | K8s 基础、安装、KubeSphere、Ingress |
+| DevOps | Nginx、Jenkins、VitePress 部署、GitHub Pages、Vercel |
+| 前端资源 | Vue、Vue3、常用工具、资源导航 |
+
+## 功能特性
+
+- 基于 VitePress 的静态文档站。
+- 自定义首页和主题样式。
+- 明暗模式与主题色切换。
+- 本地搜索。
+- 阅读进度条。
+- 文档顶部信息条：分类、阅读时间、章节数、更新时间。
+- 文档底部“本文脉络”，方便回到具体标题。
+- 代码块复制优化，避免复制出多余行号。
+- 支持 GitHub Pages 和 Vercel 双平台部署。
+- 支持 Vercel 环境下在线编辑 Markdown 并提交到 GitHub。
+
+## 技术栈
+
+- VitePress
+- Vue 3
+- TypeScript
+- Markdown
+- GitHub Pages
+- Vercel
+- GitHub OAuth
+- GitHub Contents API
+
+## 目录结构
+
+```text
+justin
+├─ api
+│  └─ github                  # Vercel Serverless API，负责在线编辑和 GitHub 写入
+├─ docs
+│  ├─ .vitepress
+│  │  ├─ config.mts           # VitePress 配置
+│  │  ├─ nav.ts               # 顶部导航
+│  │  ├─ sidebar.ts           # 侧边栏
+│  │  └─ theme                # 自定义主题和 Vue 组件
+│  └─ src
+│     ├─ docs                 # Markdown 文档内容
+│     ├─ public               # 静态资源
+│     ├─ index.md             # 首页
+│     └─ write.md             # 在线写作页面
+├─ package.json
+├─ vercel.json
+└─ README.md
 ```
-## 进入项目目录：
+
+## 本地开发
+
+安装依赖：
+
 ```bash
-cd docs
+npm ci
 ```
-## 安装依赖：
+
+启动开发服务：
+
 ```bash
-yarn install
+npm run docs:dev
 ```
-## 启动开发服务器：
+
+构建生产产物：
+
 ```bash
-yarn docs:dev
+npm run docs:build
 ```
-然后，访问 http://localhost:5173 即可在本地预览博客。
 
-## 社区参与
-发现问题？ 请不要犹豫，通过 Issue 告诉我们，让我们一起改进。 想贡献力量？ 您的每一份贡献都无比宝贵，无论是修正文档、添加新功能还是优化现有内容，我们都非常欢迎您的Pull Request。 许可声明 本博客项目依据MIT License开源，意在鼓励共享与创新。无论学习还是再创作，我们都热烈欢迎您基于此许可协议自由使用本项目资源。
+本地预览构建结果：
 
-## 联系我
-对于任何问题、建议或只是想说声“嗨”，我都乐于倾听。可以通过博客中的联系方式找到我，期待与您建立连接。
+```bash
+npm run docs:preview
+```
 
+Windows PowerShell 如果遇到脚本策略问题，可以使用：
 
+```bash
+npm.cmd run docs:dev
+npm.cmd run docs:build
+```
+
+## 部署说明
+
+### GitHub Pages
+
+GitHub Pages 适合部署静态站点。当前 VitePress 配置会在非 Vercel 环境使用：
+
+```text
+base=/justin/
+```
+
+所以 GitHub Pages 地址是：
+
+```text
+https://chizhang977.github.io/justin/
+```
+
+### Vercel
+
+Vercel 用于部署完整功能，包括 `/write` 在线编辑页面和 `/api/github/*` Serverless API。
+
+Vercel 配置在 `vercel.json`：
+
+```json
+{
+  "installCommand": "npm ci",
+  "buildCommand": "npm run docs:build",
+  "outputDirectory": "docs/.vitepress/dist",
+  "cleanUrls": true
+}
+```
+
+导入仓库时保持项目根目录为仓库根目录，不要把 Root Directory 改成 `docs`。
+
+## 在线编辑文档
+
+项目提供了 `/write` 页面，可以在线写 Markdown，然后提交到 GitHub 仓库。
+
+这个功能只能在 Vercel 上完整使用，因为它需要服务端 API 保存 GitHub OAuth Secret。GitHub Pages 是纯静态托管，不能安全写入 GitHub，只能跳转到 GitHub 网页编辑。
+
+### 工作流程
+
+```text
+打开 /write
+  -> GitHub OAuth 登录
+  -> Vercel API 校验用户
+  -> 读取或新建 Markdown
+  -> 提交到 GitHub
+  -> 产生 commit
+  -> Vercel / GitHub Pages 自动重新构建
+```
+
+### GitHub OAuth App 配置
+
+进入 GitHub：
+
+```text
+Settings -> Developer settings -> OAuth Apps -> New OAuth App
+```
+
+填写：
+
+| 配置项 | 示例 |
+| --- | --- |
+| Application name | Justin Docs Writer |
+| Homepage URL | `https://你的-vercel-production域名` |
+| Authorization callback URL | `https://你的-vercel-production域名/api/github/oauth/callback` |
+
+创建后保存：
+
+- `Client ID`
+- `Client Secret`
+
+`Client Secret` 只能放在 Vercel 环境变量中，不能提交到 GitHub。
+
+### Vercel 环境变量
+
+进入 Vercel 项目：
+
+```text
+Project -> Settings -> Environment Variables
+```
+
+添加：
+
+| 变量名 | 示例值 | 说明 |
+| --- | --- | --- |
+| `GITHUB_CLIENT_ID` | OAuth App 的 Client ID | GitHub OAuth 客户端 ID |
+| `GITHUB_CLIENT_SECRET` | OAuth App 的 Client Secret | GitHub OAuth 密钥 |
+| `GITHUB_OWNER` | `chizhang977` | 仓库拥有者 |
+| `GITHUB_REPO` | `justin` | 仓库名 |
+| `GITHUB_BRANCH` | `master` | 写入分支 |
+| `GITHUB_ALLOWED_USERS` | `chizhang977` | 允许在线提交的 GitHub 用户 |
+| `GITHUB_OAUTH_SCOPE` | `public_repo` | 公开仓库写入权限 |
+| `GITHUB_ALLOWED_PREFIXES` | `docs/src/docs/,docs/src/index.md` | 允许编辑的路径白名单 |
+
+如果仓库是私有仓库，`GITHUB_OAUTH_SCOPE` 需要改成：
+
+```text
+repo
+```
+
+### 配置后的测试流程
+
+1. 重新部署 Vercel，让环境变量生效。
+2. 打开 Vercel Production 域名下的 `/write`。
+3. 点击 `GitHub 登录`。
+4. 授权后回到 `/write`。
+5. 新建一篇测试文档，例如：
+
+```text
+docs/src/docs/linux/linux/vercel-editor-test.md
+```
+
+6. 点击 `提交`。
+7. 到 GitHub 仓库确认产生 commit。
+8. 等待 Vercel 自动重新构建。
+9. 在线访问新文档，确认内容已发布。
+10. 测试完成后删除测试文档，或者继续修改它验证编辑已有文档。
+
+### 安全边界
+
+在线编辑接口默认只允许编辑：
+
+```text
+docs/src/docs/
+docs/src/index.md
+```
+
+并且会检查：
+
+- 是否完成 GitHub OAuth 登录。
+- 当前 GitHub 用户是否在 `GITHUB_ALLOWED_USERS` 白名单中。
+- 提交路径是否是 Markdown 文件。
+- 提交路径是否在允许目录内。
+- 写入请求是否来自同源页面。
+
+这样可以避免误改 `.vitepress` 配置、构建脚本、接口代码或仓库其他文件。
+
+## 常见问题
+
+### 为什么 GitHub Pages 上不能在线提交
+
+GitHub Pages 只能托管静态文件，没有服务端函数，不能安全保存 GitHub OAuth Secret。因此 `/write` 的完整提交功能必须部署在 Vercel 上。
+
+### 提交成功后为什么页面没有立刻变化
+
+提交成功代表 Markdown 已经写入 GitHub。线上页面还需要等待 Vercel 或 GitHub Pages 重新构建，构建完成后页面才会更新。
+
+### 为什么需要 `GITHUB_ALLOWED_USERS`
+
+OAuth 只能证明用户是谁，不能自动判断这个用户是否应该有权限写你的仓库。`GITHUB_ALLOWED_USERS` 用来限制只有指定 GitHub 用户能通过站内编辑器提交。
+
+### 为什么不把 GitHub token 写在前端
+
+前端代码会被所有访问者下载。如果把 token 写进前端，任何人都可能拿到它并修改仓库。正确做法是把密钥放在 Vercel Serverless API 中。
+
+## 维护建议
+
+- 文档尽量按分类放入 `docs/src/docs`。
+- 新文档优先写清楚背景、概念、流程、命令和排障。
+- 不提交 `node_modules`、`.env`、`.vitepress/cache`、`.vitepress/dist`。
+- Vercel 使用 `npm ci`，建议以 `package-lock.json` 为准，避免同时维护多套包管理锁文件。
+
+## License
+
+本项目用于个人学习和技术沉淀，内容会持续调整和补充。

@@ -1,19 +1,39 @@
-# npm
-#package-lock.json
-node_modules
+# dependencies
+node_modules/
 
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
 
-# vscode
-.vscode
+# local env
+.env
+.env.*
+!.env.example
+!.env.*.example
 
-# vuepress
-docs/.vuepress/dist
-docs/.vitepress/cache
-docs/.vitepress/dist
+# editor
+.idea/
+.vscode/
 
-# 百度链接推送
+# VitePress / VuePress generated files
+docs/.vuepress/dist/
+docs/.vitepress/cache/
+docs/.vitepress/dist/
+
+# Vercel local metadata
+.vercel/
+
+# temporary files
+.temp/
+.temp
+tmp/
+temp/
+
+# Baidu link push
 urls.txt
 
-# mac
+# OS files
 .DS_Store
-.temp
+Thumbs.db
