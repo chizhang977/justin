@@ -3992,7 +3992,7 @@
 
 .doc-editor {
   --writer-accent: #18a058;
-  --writer-bg: #f4f6f8;
+  --writer-bg: #ffffff;
   --writer-panel: #ffffff;
   --writer-panel-soft: #f8fafc;
   --writer-border: #e5e9f0;
@@ -4007,15 +4007,13 @@
   padding: 0;
   overflow: hidden;
   color: var(--writer-text);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0)),
-    var(--writer-bg);
+  background: var(--writer-bg);
 }
 
 .dark .doc-editor {
   --writer-bg: #0f141b;
-  --writer-panel: #161c25;
-  --writer-panel-soft: #111820;
+  --writer-panel: #131a23;
+  --writer-panel-soft: #18212c;
   --writer-border: #283241;
   --writer-border-strong: #334155;
   --writer-text: #e5e7eb;
@@ -4024,9 +4022,7 @@
   --writer-shadow: none;
 
   color: var(--writer-text);
-  background:
-    linear-gradient(180deg, rgba(22, 28, 37, 0.72), rgba(15, 20, 27, 0)),
-    var(--writer-bg);
+  background: var(--writer-bg);
 }
 
 .doc-editor__file-input {
@@ -4449,7 +4445,7 @@
   overflow: hidden;
   border: 0;
   border-radius: 0;
-  background: var(--writer-bg);
+  background: var(--writer-panel);
   box-shadow: none;
 }
 
@@ -5001,8 +4997,9 @@
   display: flex;
   flex: 1 1 auto;
   min-height: 0;
-  padding: 18px 22px 24px;
+  padding: 0;
   overflow: hidden;
+  background: var(--writer-panel);
 }
 
 .doc-editor__vditor-card {
@@ -5013,15 +5010,14 @@
   height: 100%;
   min-height: 0;
   overflow: hidden;
-  border: 1px solid var(--writer-border);
-  border-radius: 8px;
-  background: var(--writer-panel);
-  box-shadow: var(--writer-shadow);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .doc-editor__vditor-head {
-  flex: 0 0 auto;
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
@@ -5074,17 +5070,18 @@
   border: 0;
   border-radius: 0;
   color: var(--writer-text);
-  background: var(--writer-panel);
+  background: var(--writer-panel) !important;
   --toolbar-icon-hover-color: var(--writer-accent);
   --toolbar-icon-color: var(--writer-muted);
 }
 
 .doc-editor .vditor-toolbar {
   flex: 0 0 auto;
-  min-height: 45px;
-  padding: 6px 12px !important;
+  min-height: 48px;
+  padding: 8px 28px !important;
   border-bottom: 1px solid var(--writer-border);
-  background: var(--writer-panel) !important;
+  background: color-mix(in srgb, var(--writer-panel) 96%, transparent) !important;
+  backdrop-filter: blur(14px);
 }
 
 .doc-editor .vditor-toolbar--pin {
@@ -5124,7 +5121,7 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
-  background: var(--writer-panel);
+  background: var(--writer-panel) !important;
 }
 
 .doc-editor .vditor-ir,
@@ -5133,16 +5130,16 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
-  background: var(--writer-panel);
+  background: var(--writer-panel) !important;
 }
 
 .doc-editor .vditor-ir pre.vditor-reset,
 .doc-editor .vditor-wysiwyg .vditor-reset,
 .doc-editor .vditor-preview .vditor-reset {
-  width: min(1080px, calc(100% - 56px));
-  max-width: 1080px;
+  width: min(980px, calc(100% - 80px));
+  max-width: 980px;
   margin: 0 auto;
-  padding: 34px 0 76px !important;
+  padding: 36px 0 92px !important;
   color: var(--writer-text);
   font-family: var(--vp-font-family-base);
   font-size: 16px;
@@ -5157,11 +5154,11 @@
   font-family: var(--vp-font-family-base);
   font-size: 15px;
   line-height: 1.85;
-  background: var(--writer-panel);
+  background: var(--writer-panel) !important;
 }
 
 .doc-editor .vditor-sv .vditor-input {
-  padding: 32px 34px !important;
+  padding: 34px 42px !important;
   border-right: 1px solid var(--writer-border);
 }
 
@@ -5263,7 +5260,7 @@
 
 .doc-editor .vditor-outline {
   border-left: 1px solid var(--writer-border);
-  background: var(--writer-panel-soft);
+  background: var(--writer-panel);
 }
 
 .dark .doc-editor .vditor,
@@ -5292,7 +5289,7 @@
 
 @media (max-width: 1180px) {
   .doc-editor__workspace.is-vditor {
-    padding: 18px;
+    padding: 0;
   }
 
   .doc-editor__vditor-card {
@@ -5303,7 +5300,7 @@
 
 @media (max-width: 760px) {
   .doc-editor__workspace.is-vditor {
-    padding: 12px;
+    padding: 0;
   }
 
   .doc-editor__vditor-head {
@@ -5320,7 +5317,7 @@
   .doc-editor .vditor-ir pre.vditor-reset,
   .doc-editor .vditor-wysiwyg .vditor-reset,
   .doc-editor .vditor-preview .vditor-reset {
-    width: calc(100% - 28px);
+    width: calc(100% - 32px);
     padding: 24px 0 64px !important;
     font-size: 15px;
   }
