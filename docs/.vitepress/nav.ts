@@ -69,11 +69,13 @@ export default [
       {
         text: 'Redis',
         items: [
-          { text: 'Redis 初识', link: '/docs/db/redis/1_Redis基础' },
-          { text: '缓存详解', link: '/docs/db/redis/3_缓存详解' },
-          { text: '分布式缓存', link: '/docs/db/redis/5_分布式缓存' },
-          { text: '最佳实践', link: '/docs/db/redis/6_最佳实践' },
-          { text: 'Redis 集群', link: '/docs/db/redis/7_Redis集群' }
+          { text: '安装说明', link: '/docs/db/redis/00.Redis安装说明' },
+          { text: '快速入门', link: '/docs/db/redis/01.快速入门' },
+          { text: 'Redis 基础', link: '/docs/db/redis/02.Redis基础' },
+          { text: 'Redis 实战', link: '/docs/db/redis/03.Redis实战篇' },
+          { text: '分布式缓存', link: '/docs/db/redis/04.分布式缓存' },
+          { text: '最佳实践', link: '/docs/db/redis/06.最佳实践' },
+          { text: 'Redis 集群', link: '/docs/db/redis/07.Redis集群' }
         ]
       }
     ]

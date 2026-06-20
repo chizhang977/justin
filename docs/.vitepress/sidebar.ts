@@ -63,20 +63,24 @@ const sidebar: DefaultTheme.Sidebar = {
   ],
 
   '/docs/db/redis/': [
-    group('Redis 基础', [
-      { text: 'Redis 初识', link: '/docs/db/redis/1_Redis基础' },
-      { text: 'Redis 基础', link: '/docs/db/redis/2_Redis基础' },
-      { text: '缓存详解', link: '/docs/db/redis/3_缓存详解' }
+    group('入门安装', [
+      { text: '安装说明', link: '/docs/db/redis/00.Redis安装说明' },
+      { text: '快速入门', link: '/docs/db/redis/01.快速入门' },
+      { text: 'Redis 基础', link: '/docs/db/redis/02.Redis基础' }
     ]),
-    group('缓存架构', [
-      { text: '多级缓存', link: '/docs/db/redis/4_多级缓存' },
-      { text: '分布式缓存', link: '/docs/db/redis/5_分布式缓存' },
-      { text: '最佳实践', link: '/docs/db/redis/6_最佳实践' },
-      { text: 'Redis 集群', link: '/docs/db/redis/7_Redis集群' }
+    group('业务实战', [
+      { text: 'Redis 实战篇', link: '/docs/db/redis/03.Redis实战篇' },
+      { text: '最佳实践', link: '/docs/db/redis/06.最佳实践' }
     ]),
+    group('架构与原理', [
+      { text: '分布式缓存', link: '/docs/db/redis/04.分布式缓存' },
+      { text: '多级缓存', link: '/docs/db/redis/05.多级缓存' },
+      { text: 'Redis 集群', link: '/docs/db/redis/07.Redis集群' },
+      { text: '原理篇', link: '/docs/db/redis/10.原理篇' }
+    ], true),
     group('组件集成', [
-      { text: 'OpenResty', link: '/docs/db/redis/8_安装OpenResty' },
-      { text: 'Canal', link: '/docs/db/redis/9_安装Canal' }
+      { text: 'Canal', link: '/docs/db/redis/08.安装Canal' },
+      { text: 'OpenResty', link: '/docs/db/redis/09安装OpenResty' }
     ], true)
   ],
 
