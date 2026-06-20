@@ -1,7 +1,7 @@
 ---
 icon: docker
 ---
-# 6_主从复制(MySQL,Redis)
+# Docker 数据库主从复制实验
 
 #### 理解
 

@@ -1,7 +1,7 @@
 ---
 outline: [1,4]
 ---
-# kubesphere 入门
+# KubeSphere 应用部署实践
 ## 多租户
 ## 中间件部署
 :::tip 部署三要素

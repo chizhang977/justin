@@ -1,7 +1,7 @@
 ---
 icon: docker
 ---
-# 8_Dockerfile详解
+# Dockerfile 详解
 
 ## Dockerfile概述
 

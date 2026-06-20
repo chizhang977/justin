@@ -1,7 +1,7 @@
 ---
 date: 2024-04-10
 ---
-# Kubernetes初识
+# Kubernetes 入门
 [API 文档](https://kubernetes.io/zh-cn/docs/reference/kubectl/)
 
 Kubernetes 为你提供了一个可弹性运行分布式系统的框架。 Kubernetes 会满足你的扩展要求、故障转移、部署模式等。 例如，Kubernetes 可以轻松管理系统的 Canary 部署。
@@ -270,7 +270,7 @@ NodePort范围在 30000-32767 之间
 暴露的既可以内部ip:port 也可以使用域名。域名规则  `服务名.所在命名空间.svc:port`
 
 ## Ingress
-[Ingress安装过程的坑](./ingress安装问题.md)
+[Ingress 安装与 Dashboard 排障](./ingress-troubleshooting.md)
 
 入口
 

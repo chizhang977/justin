@@ -86,21 +86,22 @@ export default [
       {
         text: 'Docker',
         items: [
-          { text: 'Docker 初识', link: '/docs/linux/docker/Docker初识' },
-          { text: '常用命令', link: '/docs/linux/docker/Docker常用命令' },
-          { text: 'Dockerfile', link: '/docs/linux/docker/Dockerfile详解' },
-          { text: '网络', link: '/docs/linux/docker/Docker网络' },
-          { text: 'Compose', link: '/docs/linux/docker/DockerCompose' },
+          { text: 'Docker 入门', link: '/docs/linux/docker/intro' },
+          { text: '命令速查', link: '/docs/linux/docker/commands' },
+          { text: 'Dockerfile', link: '/docs/linux/docker/dockerfile' },
+          { text: '网络模型', link: '/docs/linux/docker/network' },
+          { text: 'Compose', link: '/docs/linux/docker/compose' },
           { text: '生产部署', link: '/docs/linux/docker/production-deploy' }
         ]
       },
       {
         text: 'Kubernetes',
         items: [
-          { text: 'K8s 初识', link: '/docs/linux/k8s/k8s初识' },
-          { text: 'K8s 安装', link: '/docs/linux/k8s/k8s安装' },
-          { text: 'KubeSphere', link: '/docs/linux/k8s/kubesphere' },
-          { text: 'Ingress', link: '/docs/linux/k8s/ingress安装问题' }
+          { text: 'K8s 入门', link: '/docs/linux/k8s/intro' },
+          { text: 'kubeadm 安装', link: '/docs/linux/k8s/kubeadm-install' },
+          { text: 'KubeSphere 安装', link: '/docs/linux/k8s/kubesphere-install' },
+          { text: 'KubeSphere 实践', link: '/docs/linux/k8s/kubesphere-practice' },
+          { text: 'Ingress 排障', link: '/docs/linux/k8s/ingress-troubleshooting' }
         ]
       }
     ]
@@ -114,6 +115,7 @@ export default [
           { text: 'Nginx', link: '/docs/linux/nginx/Nginx入门与反向代理' },
           { text: 'Jenkins', link: '/docs/devops/jenkins/Jenkins流水线入门' },
           { text: 'VitePress 部署', link: '/docs/devops/deploy/vitepress-github-vercel' },
+          { text: 'EdgeOne Pages', link: '/docs/devops/deploy/edgeone-pages' },
           { text: '在线写作配置', link: '/docs/devops/deploy/online-editor-vercel-github' }
         ]
       },

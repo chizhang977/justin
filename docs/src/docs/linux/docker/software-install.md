@@ -1,7 +1,7 @@
 ---
 icon: docker
 ---
-# 7_Docker 安装常见软件集合
+# Docker 安装常见软件集合
 
 # Docker 安装常见软件集合
 

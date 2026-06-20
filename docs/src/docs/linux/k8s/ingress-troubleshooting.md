@@ -2,7 +2,7 @@
 layout: doc
 aside: false
 ---
-# 踩过的坑
+# Ingress 与 Dashboard 排障记录
 ## The connection to the server lb.kubesphere.local:6443 was refused - did you specify the right host..
 [我已经解决了写在csdn中](https://blog.csdn.net/weixin_50135832/article/details/139562948?spm=1001.2014.3001.5502)
 ## dashboard 安装

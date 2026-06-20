@@ -1,7 +1,7 @@
 ---
 icon: docker
 ---
-# 9_1_Docker Compose
+# Docker Compose
 ------
 
 ### 引言

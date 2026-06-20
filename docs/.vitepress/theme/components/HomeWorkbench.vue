@@ -29,7 +29,7 @@ const tracks = [
   {
     title: 'Docker 部署实践',
     desc: '围绕镜像、容器、网络、数据卷、Compose、日志和回滚，把服务部署流程整理成闭环。',
-    href: '/docs/linux/docker/Docker初识',
+    href: '/docs/linux/docker/intro',
     icon: '/icon/云原生.svg',
     count: countDocs('/linux/docker/'),
     status: '生产实践'
@@ -47,7 +47,7 @@ const tracks = [
 const quickLinks = [
   ['Linux 路线', '/docs/linux/linux/'],
   ['MySQL SQL', '/docs/db/mysql/sql-basic'],
-  ['Docker Compose', '/docs/linux/docker/DockerCompose'],
+  ['Docker Compose', '/docs/linux/docker/compose'],
   ['Nginx 代理', '/docs/linux/nginx/Nginx入门与反向代理'],
   ['Jenkins', '/docs/devops/jenkins/Jenkins流水线入门'],
   ['VitePress 部署', '/docs/devops/deploy/vitepress-github-vercel']
@@ -91,7 +91,7 @@ const flow = [
         <div class="hw-map">
           <a class="hw-map-node linux" :href="withBase('/docs/linux/linux/')">Linux</a>
           <a class="hw-map-node mysql" :href="withBase('/docs/db/mysql/')">MySQL</a>
-          <a class="hw-map-node docker" :href="withBase('/docs/linux/docker/Docker初识')">Docker</a>
+          <a class="hw-map-node docker" :href="withBase('/docs/linux/docker/intro')">Docker</a>
           <a class="hw-map-node ops" :href="withBase('/docs/devops/jenkins/Jenkins流水线入门')">CI/CD</a>
         </div>
         <div class="hw-terminal" aria-label="常用排障命令">

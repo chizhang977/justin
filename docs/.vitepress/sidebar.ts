@@ -86,19 +86,22 @@ const sidebar: DefaultTheme.Sidebar = {
 
   '/docs/linux/docker/': [
     group('Docker 基础', [
-      { text: 'Docker 初识', link: '/docs/linux/docker/Docker初识' },
-      { text: '常用命令', link: '/docs/linux/docker/Docker常用命令' },
-      { text: '镜像概念', link: '/docs/linux/docker/Docker镜像概念' },
-      { text: '数据卷', link: '/docs/linux/docker/Dokcer数据卷' }
+      { text: 'Docker 入门', link: '/docs/linux/docker/intro' },
+      { text: '命令速查', link: '/docs/linux/docker/commands' },
+      { text: '命令参考', link: '/docs/linux/docker/command-reference' },
+      { text: '镜像概念', link: '/docs/linux/docker/image' },
+      { text: '数据卷', link: '/docs/linux/docker/volume' }
     ]),
     group('构建与运行', [
-      { text: 'Dockerfile', link: '/docs/linux/docker/Dockerfile详解' },
-      { text: 'Docker 网络', link: '/docs/linux/docker/Docker网络' },
-      { text: 'Docker Compose', link: '/docs/linux/docker/DockerCompose' },
-      { text: '软件安装', link: '/docs/linux/docker/Docker软件安装' }
+      { text: 'Docker 网络', link: '/docs/linux/docker/network' },
+      { text: 'Dockerfile', link: '/docs/linux/docker/dockerfile' },
+      { text: 'Docker Compose', link: '/docs/linux/docker/compose' },
+      { text: '常见软件安装', link: '/docs/linux/docker/software-install' },
+      { text: 'Portainer 可视化', link: '/docs/linux/docker/portainer' }
     ]),
     group('生产实践', [
-      { text: '生产部署与排障', link: '/docs/linux/docker/production-deploy' }
+      { text: '生产部署与排障', link: '/docs/linux/docker/production-deploy' },
+      { text: '数据库主从实验', link: '/docs/linux/docker/replication-lab' }
     ], true)
   ],
 
@@ -109,15 +112,17 @@ const sidebar: DefaultTheme.Sidebar = {
   ],
 
   '/docs/linux/k8s/': [
-    group('K8s 基础', [
-      { text: 'K8s 初识', link: '/docs/linux/k8s/k8s初识' },
-      { text: 'K8s 安装', link: '/docs/linux/k8s/k8s安装' },
-      { text: 'Ingress 问题', link: '/docs/linux/k8s/ingress安装问题' }
+    group('基础安装', [
+      { text: 'Kubernetes 入门', link: '/docs/linux/k8s/intro' },
+      { text: 'kubeadm 安装集群', link: '/docs/linux/k8s/kubeadm-install' }
     ]),
     group('KubeSphere', [
-      { text: 'KubeSphere 安装', link: '/docs/linux/k8s/kubesphere' },
-      { text: 'KubeSphere 入门', link: '/docs/linux/k8s/kubesphere1' },
-      { text: 'KubeSphere 基础', link: '/docs/linux/k8s/kubesphere2' }
+      { text: '安装 KubeSphere', link: '/docs/linux/k8s/kubesphere-install' },
+      { text: '应用部署实践', link: '/docs/linux/k8s/kubesphere-practice' },
+      { text: '中间件地址记录', link: '/docs/linux/k8s/kubesphere-services' }
+    ], true),
+    group('排障记录', [
+      { text: 'Ingress 与 Dashboard', link: '/docs/linux/k8s/ingress-troubleshooting' }
     ], true)
   ],
 

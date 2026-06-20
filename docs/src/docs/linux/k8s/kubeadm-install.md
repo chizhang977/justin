@@ -1,5 +1,6 @@
-# kubeadm创建集群
-[安装前请先安装Docker](../docker/Docker初识.md)
+# kubeadm 创建 Kubernetes 集群
+
+[安装前请先安装 Docker](../docker/intro.md)
 ## 1、安装`kubeadm`
 - 一台兼容的 Linux 主机。Kubernetes 项目为基于 Debian 和 Red Hat 的 Linux 发行版以及一些不提供包管理器的发行版提供通用的指令
 - 每台机器 2 GB 或更多的 RAM （如果少于这个数字将会影响你应用的运行内存)
