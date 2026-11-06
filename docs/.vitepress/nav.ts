@@ -126,6 +126,12 @@ export default [
           { text: '运维工具', link: '/docs/front/res/Operation' },
           { text: '实用工具', link: '/docs/front/res/UtilityTools' }
         ]
+      },
+      {
+        text: '项目',
+        items: [
+          { text: '架构梳理', link: '/docs/devops/architecture' }
+        ]
       }
     ]
   },

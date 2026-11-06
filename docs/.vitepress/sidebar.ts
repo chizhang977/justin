@@ -150,6 +150,9 @@ const sidebar: DefaultTheme.Sidebar = {
       { text: 'EdgeOne Pages', link: '/docs/devops/deploy/edgeone-pages' },
       { text: '在线写作配置', link: '/docs/devops/deploy/online-editor-vercel-github' }
     ]),
+    group('项目架构', [
+      { text: '存量项目架构梳理', link: '/docs/devops/architecture' }
+    ]),
     group('CI/CD', [
       { text: 'Jenkins 流水线', link: '/docs/devops/jenkins/Jenkins流水线入门' }
     ])
